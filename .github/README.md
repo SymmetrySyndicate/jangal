@@ -1,0 +1,1 @@
+trees, forests, graphs (hypergraphs?)
