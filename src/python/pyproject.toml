@@ -1,0 +1,10 @@
+[project]
+name = "jangal"
+version = "0.0.1"
+description = "trees, forests, graphs"
+dependencies = [
+    "pytest>=6.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
