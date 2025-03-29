@@ -4,8 +4,6 @@ from typing import Optional
 
 __all__ = ["vEB"]
 
-# TODO: Add support for floating point numbers
-
 
 class vEB:
     def __init__(self, size: int):
