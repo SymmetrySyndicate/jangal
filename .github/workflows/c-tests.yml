@@ -1,0 +1,36 @@
+name: "C Tests"
+
+on:
+    workflow_dispatch:
+    push:
+        branches: [main]
+        paths:
+            - "**.c"
+            - "**.h"
+            - ".github/workflows/c-tests.yml"
+    pull_request:
+        branches: [main]
+        paths:
+            - "**.c"
+            - "**.h"
+            - ".github/workflows/c-tests.yml"
+    release:
+        types: [created]
+    schedule:
+        - cron: "0 0 * * 0"
+
+jobs:
+    build:
+        runs-on: ${{ matrix.os }}
+
+        strategy:
+            matrix:
+                os: [ubuntu-latest, macos-latest]
+
+        steps:
+            - name: checkout
+              uses: actions/checkout@v4
+
+            - name: Run Tests
+              working-directory: src/c/
+              run: make test
