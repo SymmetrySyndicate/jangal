@@ -41,7 +41,7 @@ void test_basic_operations() {
 }
 
 int main() {
-  printf("Running tests");
+  printf("Running tests\n");
   test_basic_operations();
   return 0;
 }
