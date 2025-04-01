@@ -1,7 +1,7 @@
+#include "vEB.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <vEB.h>
 
 vEB *create_vEB(int size) {
   vEB *tree = (vEB *)malloc(sizeof(vEB));
