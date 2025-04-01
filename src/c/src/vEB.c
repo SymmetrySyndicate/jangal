@@ -176,7 +176,11 @@ void delete(vEB *tree, int x) {
     } else {
       int sqrt_size = (int)sqrt(tree->size);
       int max_cluster = tree->summary->max;
-      tree->max = max_cluster * sqrt_size + tree->cluster[max_cluster]->max;
+      if (max_cluster == -1 || tree->cluster[max_cluster] == NULL) {
+        tree->max = tree->min;
+      } else {
+        tree->max = max_cluster * sqrt_size + tree->cluster[max_cluster]->max;
+      }
     }
   }
 }
