@@ -31,9 +31,6 @@ jobs:
             - name: checkout
               uses: actions/checkout@v4
 
-            - name: Install Dependencies
-              run: sudo apt-get update && sudo apt-get install -y gcc
-
             - name: Run Tests
               working-directory: src/c/
               run: make test
