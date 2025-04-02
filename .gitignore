@@ -1,13 +1,18 @@
+# python stuff
 **/__pycache__/
 **/*.egg-info
 *.pyc
 .pytest_cache/
 .ruff_cache/
-
 venv/
 
-**/.DS_Store
-
-.zed
-
+# C stuff
+*.cache
 *.out
+
+# Editor specific stuff
+.zed
+compile_commands.json
+
+# OS specific stuff
+**/.DS_Store
