@@ -25,6 +25,9 @@ jobs:
             - name: checkout
               uses: actions/checkout@v4
 
+            - name: Pre-Commit Hooks
+              uses: pre-commit/action@main
+
             - name: Install uv
               uses: astral-sh/setup-uv@v5
 

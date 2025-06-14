@@ -31,6 +31,9 @@ jobs:
             - name: checkout
               uses: actions/checkout@v4
 
+            - name: Pre-Commit Hooks
+              uses: pre-commit/action@main
+
             - name: Run Tests
               working-directory: src/c/
               run: make test
