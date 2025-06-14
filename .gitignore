@@ -11,6 +11,7 @@ venv/
 *.out
 
 # Editor specific stuff
+.vscode
 .zed
 compile_commands.json
 
