@@ -11,15 +11,14 @@ def empty_bst():
 
 @pytest.fixture
 def sample_bst():
-    """Create a sample BST for testing
-          5
-         / \
-        3   7
-       / \   \
-      1   4   9
-       \
-        2
-    """
+    #       5
+    #      / \
+    #     3   7
+    #    / \   \
+    #   1   4   9
+    #    \
+    #     2
+
     bst = BST()
     elements = [5, 3, 7, 1, 4, 9, 2]
     for element in elements:
@@ -29,6 +28,15 @@ def sample_bst():
 
 @pytest.fixture
 def complex_bst():
+    #            10
+    #          /    \
+    #         5      15
+    #       /  \    /  \
+    #      3    7  11  18
+    #     / \    \     / \
+    #    1   4    8   17 19
+    #     \
+    #      2
     bst = BST()
     elements = [10, 5, 15, 3, 7, 11, 18, 1, 4, 8, 17, 19, 2]
     for element in elements:
@@ -43,6 +51,7 @@ def test_empty_bst(empty_bst):
     assert empty_bst.size == 0
     assert empty_bst.root is None
     assert list(empty_bst.inorder()) == []
+    assert list(empty_bst.boundary_traversal()) == []
     assert empty_bst.search(5) is None
 
     # single insertion
@@ -146,7 +155,7 @@ def test_traversal_methods():
     assert [node.value for node in postorder_result] == expected_values
 
 
-def test_complex_tree_operations():
+def test_complex_tree_operations(complex_bst):
     """Test a more complex sequence of operations"""
     bst = BST()
 
@@ -162,6 +171,11 @@ def test_complex_tree_operations():
     expected_values = [1, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 15, 16, 18, 19]
     assert [node.value for node in inorder_result] == expected_values
 
+    # boundary traversal
+    boundary_result = list(complex_bst.boundary_traversal())
+    expected_values = [10, 5, 3, 1, 2, 4, 8, 11, 17, 19, 18, 15]
+    assert [node.value for node in boundary_result] == expected_values
+
     # Delete some elements
     bst.delete(5)
     bst.delete(15)
@@ -171,21 +185,3 @@ def test_complex_tree_operations():
     inorder_result = list(bst.inorder())
     expected_values = [1, 3, 4, 6, 7, 8, 11, 12, 13, 16, 18, 19]
     assert [node.value for node in inorder_result] == expected_values
-
-
-def test_boundary_traversal_empty_tree(empty_bst):
-    """Test boundary traversal on empty tree"""
-    boundary_result = list(empty_bst.boundary_traversal())
-    assert boundary_result == []
-
-
-def test_boundary_traversal_sample_tree(sample_bst, complex_bst):
-    boundary_result = list(sample_bst.boundary_traversal())
-    boundary_values = [node.value for node in boundary_result]
-    expected_values = [5, 3, 1, 2, 4, 9, 7]
-    assert boundary_values == expected_values
-
-    complex_boundary_result = list(complex_bst.boundary_traversal())
-    complex_boundary_values = [node.value for node in complex_boundary_result]
-    complex_expected_values = [10, 5, 3, 1, 2, 4, 8, 11, 17, 19, 18, 15]
-    assert complex_boundary_values == complex_expected_values
