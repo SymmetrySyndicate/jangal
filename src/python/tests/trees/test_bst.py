@@ -27,6 +27,15 @@ def sample_bst():
     return bst
 
 
+@pytest.fixture
+def complex_bst():
+    bst = BST()
+    elements = [10, 5, 15, 3, 7, 11, 18, 1, 4, 8, 17, 19, 2]
+    for element in elements:
+        bst.insert(element)
+    return bst
+
+
 def test_empty_bst(empty_bst):
     """Test operations on an empty BST"""
     # empty tree
@@ -162,3 +171,71 @@ def test_complex_tree_operations():
     inorder_result = list(bst.inorder())
     expected_values = [1, 3, 4, 6, 7, 8, 11, 12, 13, 16, 18, 19]
     assert [node.value for node in inorder_result] == expected_values
+
+def test_boundary_traversal_empty_tree(empty_bst):
+    """Test boundary traversal on empty tree"""
+    boundary_result = list(empty_bst.boundary_traversal())
+    assert boundary_result == []
+
+
+def test_boundary_traversal_single_node():
+    """Test boundary traversal on single node tree"""
+    bst = BST()
+    bst.insert(10)
+
+    boundary_result = list(bst.boundary_traversal())
+    assert len(boundary_result) == 1
+    assert boundary_result[0].value == 10
+
+
+def test_boundary_traversal_sample_tree(sample_bst):
+    boundary_result = list(sample_bst.boundary_traversal())
+    boundary_values = [node.value for node in boundary_result]
+    expected_values = [5, 3, 1, 2, 4, 9, 7]
+    assert boundary_values == expected_values
+
+
+def test_boundary_traversal_complex_tree(complex_bst):
+    boundary_result = list(complex_bst.boundary_traversal())
+    boundary_values = [node.value for node in boundary_result]
+    expected_values = [10, 5, 3, 1, 2, 4, 8, 11, 17, 19, 18, 15]
+    assert boundary_values == expected_values
+
+
+def test_boundary_traversal_linear_left():
+    """Test boundary traversal on left-skewed tree"""
+    bst = BST()
+    elements = [5, 4, 3, 2, 1]
+    for element in elements:
+        bst.insert(element)
+
+    boundary_result = list(bst.boundary_traversal())
+    boundary_values = [node.value for node in boundary_result]
+    expected_values = [5, 4, 3, 2, 1]
+    assert boundary_values == expected_values
+
+
+def test_boundary_traversal_linear_right():
+    """Test boundary traversal on right-skewed tree"""
+    bst = BST()
+    elements = [1, 2, 3, 4, 5]
+    for element in elements:
+        bst.insert(element)
+
+    boundary_result = list(bst.boundary_traversal())
+    boundary_values = [node.value for node in boundary_result]
+    expected_values = [1, 5, 4, 3, 2]
+    assert boundary_values == expected_values
+
+
+def test_boundary_traversal_balanced_tree():
+    """Test boundary traversal on a more balanced tree"""
+    bst = BST()
+    elements = [8, 4, 12, 2, 6, 10, 14, 1, 3, 5, 7, 9, 11, 13, 15]
+    for element in elements:
+        bst.insert(element)
+
+    boundary_result = list(bst.boundary_traversal())
+    boundary_values = [node.value for node in boundary_result]
+    expected_values = [8, 4, 2, 1, 3, 5, 7, 9, 11, 13, 15, 14, 12]
+    assert boundary_values == expected_values
