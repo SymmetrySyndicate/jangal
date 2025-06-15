@@ -172,6 +172,7 @@ def test_complex_tree_operations():
     expected_values = [1, 3, 4, 6, 7, 8, 11, 12, 13, 16, 18, 19]
     assert [node.value for node in inorder_result] == expected_values
 
+
 def test_boundary_traversal_empty_tree(empty_bst):
     """Test boundary traversal on empty tree"""
     boundary_result = list(empty_bst.boundary_traversal())
