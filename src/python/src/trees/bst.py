@@ -172,45 +172,45 @@ class BST(Tree):
             current = current.right
 
     def boundary_traversal(self) -> Generator[BSTNode, None, None]:
-            """
-            Perform boundary traversal of the BST.
-            """
-            if self._root is None:
-                return
+        """
+        Perform boundary traversal of the BST.
+        """
+        if self._root is None:
+            return
 
-            if self._root.left is None and self._root.right is None:
-                yield self._root
-                return
-
+        if self._root.left is None and self._root.right is None:
             yield self._root
+            return
 
-            left_boundary = self._get_left_boundary(self._root.left)
-            for node in left_boundary:
-                yield node
+        yield self._root
 
-            leaf_nodes = list(self._get_leaf_nodes(self._root))
-            for node in leaf_nodes:
-                yield node
+        left_boundary = self._get_left_boundary(self._root.left)
+        for node in left_boundary:
+            yield node
 
-            right_boundary = self._get_right_boundary(self._root.right)
-            for node in reversed(right_boundary):
-                yield node
+        leaf_nodes = list(self._get_leaf_nodes(self._root))
+        for node in leaf_nodes:
+            yield node
+
+        right_boundary = self._get_right_boundary(self._root.right)
+        for node in reversed(right_boundary):
+            yield node
 
     def _get_left_boundary(self, node: Optional[BSTNode]):
-            """Get left boundary nodes (excluding leaf nodes)"""
-            boundary = []
-            current = node
+        """Get left boundary nodes (excluding leaf nodes)"""
+        boundary = []
+        current = node
 
-            while current is not None:
-                if not self._is_leaf(current):
-                    boundary.append(current)
+        while current is not None:
+            if not self._is_leaf(current):
+                boundary.append(current)
 
-                if current.left is not None:
-                    current = current.left
-                else:
-                    current = current.right
+            if current.left is not None:
+                current = current.left
+            else:
+                current = current.right
 
-            return boundary
+        return boundary
 
     def _get_right_boundary(self, node: Optional[BSTNode]):
         """Get right boundary nodes (excluding leaf nodes)"""
@@ -228,7 +228,9 @@ class BST(Tree):
 
         return boundary
 
-    def _get_leaf_nodes(self, node: Optional[BSTNode]) -> Generator[BSTNode, None, None]:
+    def _get_leaf_nodes(
+        self, node: Optional[BSTNode]
+    ) -> Generator[BSTNode, None, None]:
         """Get all leaf nodes using inorder traversal"""
         if node is None:
             return
