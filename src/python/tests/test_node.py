@@ -106,3 +106,116 @@ def test_parent_child_relationships():
     assert len(root.children) == 2
     assert child1 in root.children
     assert child2 in root.children
+
+
+def test_is_root_property():
+    """Test is_root property"""
+    root = Node(1)
+    child = Node(2)
+
+    assert root.is_root is True
+    assert root.is_leaf is True
+    assert child.is_root is True  # Initially no parent
+    assert child.is_leaf is True  # Initially no children
+
+    root.add_child(child)
+    assert root.is_root is True
+    assert root.is_leaf is False
+    assert child.is_root is False
+    assert child.is_leaf is True
+
+
+def test_length_properties(sample_tree):
+    """Test length properties"""
+    root = Node(1)
+    assert root.height == 0
+    assert root.depth == 0
+
+    child = Node(2)
+    root.add_child(child)
+    assert root.height == 1
+    assert child.height == 0
+    assert root.depth == 0
+    assert child.depth == 1
+
+    assert sample_tree["root"].height == 3
+    assert sample_tree["node2"].height == 2
+    assert sample_tree["node7"].height == 0
+    assert sample_tree["root"].depth == 0
+    assert sample_tree["node2"].depth == 1
+    assert sample_tree["node7"].depth == 3
+
+
+def test_num_property(sample_tree):
+    root = Node(1)
+    assert root.num_leaves == 1
+    assert root.num_nodes == 1
+    assert root.diameter == 0
+
+    child = Node(2)
+    root.add_child(child)
+    assert root.num_leaves == 1
+    assert root.num_nodes == 2
+    assert root.diameter == 1
+    assert child.num_leaves == 1
+    assert child.num_nodes == 1
+
+    child2 = Node(3)
+    root.add_child(child2)
+    assert root.num_leaves == 2
+    assert root.num_nodes == 3
+    assert root.diameter == 2
+    assert child.num_leaves == 1
+    assert child.num_nodes == 1
+    assert child2.num_leaves == 1
+    assert child2.num_nodes == 1
+
+    assert sample_tree["root"].num_leaves == 3
+    assert sample_tree["root"].diameter == 5
+    assert sample_tree["root"].num_nodes == 8
+    assert sample_tree["node2"].num_leaves == 2
+    assert sample_tree["node7"].num_leaves == 1
+    assert sample_tree["node2"].num_nodes == 5
+    assert sample_tree["node4"].num_nodes == 2
+    assert sample_tree["node7"].num_nodes == 1
+
+
+def test_is_balanced_property():
+    """Test is_balanced property"""
+    #   1
+    root = Node(1)
+    assert root.is_balanced is True
+
+    #    1
+    #   /
+    #  2
+    child = Node(2)
+    root.add_child(child)
+    assert root.is_balanced is True
+
+    #    1
+    #   / \
+    #  2   3
+    child2 = Node(3)
+    root.add_child(child2)
+    assert root.is_balanced is True
+
+    #     1
+    #    / \
+    #   2   3
+    #  /
+    # 4
+    grandchild = Node(4)
+    child.add_child(grandchild)
+    assert root.is_balanced is True
+
+    #        1
+    #       / \
+    #      2   3
+    #     /
+    #    4
+    #   /
+    #  5
+    great_grandchild = Node(5)
+    grandchild.add_child(great_grandchild)
+    assert root.is_balanced is True

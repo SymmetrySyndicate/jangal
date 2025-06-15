@@ -116,6 +116,64 @@ class Node:
                 yield from child.postorder()
             yield self
 
+    @property
+    def is_root(self) -> bool:
+        return self.parent is None
+
+    @property
+    def is_leaf(self) -> bool:
+        return len(self._children) == 0
+
+    @property
+    def height(self) -> int:
+        if self.is_leaf:
+            return 0
+        return 1 + max(child.height for child in self._children)
+
+    @property
+    def depth(self) -> int:
+        if self.is_root:
+            return 0
+        return 1 + self.parent.depth
+
+    @property
+    def num_leaves(self) -> int:
+        if self.is_leaf:
+            return 1
+        return sum(child.num_leaves for child in self._children)
+
+    @property
+    def num_nodes(self) -> int:
+        return 1 + sum(child.num_nodes for child in self._children)
+
+    @property
+    def diameter(self) -> int:
+        if self.is_leaf:
+            return 0
+
+        children_list = list(self._children)
+
+        if len(children_list) == 0:
+            return 0
+        elif len(children_list) == 1:
+            return 1 + children_list[0].height
+        else:
+            heights = [child.height for child in children_list]
+            heights.sort(reverse=True)
+            root_diameter = 2 + heights[0] + heights[1]  # path through root
+            child_diameters = [child.diameter for child in children_list]
+
+            return max(root_diameter, *child_diameters)
+
+    @property
+    def is_balanced(self) -> bool:
+        if self.is_leaf:
+            return True
+        else:
+            heights = [child.height for child in self._children]
+            heights.sort(reverse=True)
+            return all(height <= 1 for height in heights)
+
     def __hash__(self) -> int:
         return hash(self.id)
 
