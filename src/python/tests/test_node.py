@@ -225,7 +225,10 @@ def test_equality(sample_tree):
     # 1 == 1
     root1 = Node(1)
     root2 = Node(1)
+
     assert root1 == root2
+    assert root1.is_subtree(root2)
+    assert root2.is_subtree(root1)
 
     #   1 != 1
     #  /      \
@@ -240,6 +243,8 @@ def test_equality(sample_tree):
     tree2.add_child(child3)
 
     assert tree1 != tree2
+    assert not tree1.is_subtree(tree2)
+    assert not tree2.is_subtree(tree1)
 
     #   1    ==    1
     #  / \        / \
@@ -258,5 +263,9 @@ def test_equality(sample_tree):
     tree2.add_child(child3_2)
 
     assert tree1 == tree2
+    assert tree1.is_subtree(tree2)
+    assert tree2.is_subtree(tree1)
 
     assert tree1 != sample_tree["root"]
+    assert not tree1.is_subtree(sample_tree["root"])
+    assert not sample_tree["root"].is_subtree(tree1)

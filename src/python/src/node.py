@@ -182,6 +182,30 @@ class Node:
             leaves.extend(child.get_leaves())
         return leaves
 
+    def is_subtree(self, other: "Node") -> bool:
+        if not isinstance(other, Node):
+            return False
+
+        if self.value != other.value:
+            return False
+
+        if self.is_leaf and other.is_leaf:
+            return True
+
+        if self.is_leaf != other.is_leaf:
+            return False
+
+        if len(self._children) != len(other._children):
+            return False
+
+        self_children = sorted(self._children, key=lambda x: x.value)
+        other_children = sorted(other._children, key=lambda x: x.value)
+
+        return all(
+            child1.is_subtree(child2)
+            for child1, child2 in zip(self_children, other_children)
+        )
+
     def __hash__(self) -> int:
         return hash(self.id)
 
@@ -192,13 +216,4 @@ class Node:
         return f"Node(value={self.value}, id={self.id})"
 
     def __eq__(self, other: "Node") -> bool:
-        if len(self.get_leaves()) != len(other.get_leaves()):
-            return False
-
-        self_leaves = self.get_leaves()
-        other_leaves = other.get_leaves()
-
-        self_leaves.sort()
-        other_leaves.sort()
-
-        return self_leaves == other_leaves
+        return self.is_subtree(other)
