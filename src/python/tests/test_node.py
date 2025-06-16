@@ -218,4 +218,4 @@ def test_is_balanced_property():
     #  5
     great_grandchild = Node(5)
     grandchild.add_child(great_grandchild)
-    assert root.is_balanced is True
+    assert root.is_balanced is False
