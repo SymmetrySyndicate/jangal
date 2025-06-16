@@ -219,3 +219,44 @@ def test_is_balanced_property():
     great_grandchild = Node(5)
     grandchild.add_child(great_grandchild)
     assert root.is_balanced is False
+
+
+def test_equality(sample_tree):
+    # 1 == 1
+    root1 = Node(1)
+    root2 = Node(1)
+    assert root1 == root2
+
+    #   1 != 1
+    #  /      \
+    # 2        3
+    tree1 = Node(1)
+    tree2 = Node(1)
+
+    child2 = Node(2)
+    tree1.add_child(child2)
+
+    child3 = Node(3)
+    tree2.add_child(child3)
+
+    assert tree1 != tree2
+
+    #   1    ==    1
+    #  / \        / \
+    # 2   3      2   3
+    tree1 = Node(1)
+    tree2 = Node(1)
+
+    child2_1 = Node(2)
+    child3_1 = Node(3)
+    tree1.add_child(child2_1)
+    tree1.add_child(child3_1)
+
+    child2_2 = Node(2)
+    child3_2 = Node(3)
+    tree2.add_child(child2_2)
+    tree2.add_child(child3_2)
+
+    assert tree1 == tree2
+
+    assert tree1 != sample_tree["root"]

@@ -174,6 +174,14 @@ class Node:
             heights.sort(reverse=True)
             return all(height <= 1 for height in heights)
 
+    def get_leaves(self):
+        if self.is_leaf:
+            return [self.value]
+        leaves = []
+        for child in self._children:
+            leaves.extend(child.get_leaves())
+        return leaves
+
     def __hash__(self) -> int:
         return hash(self.id)
 
@@ -183,6 +191,14 @@ class Node:
     def __repr__(self) -> str:
         return f"Node(value={self.value}, id={self.id})"
 
-    # TODO: Implement a proper check
-    # def __eq__(self, other: "Node") -> bool:
-    #     pass
+    def __eq__(self, other: "Node") -> bool:
+        if len(self.get_leaves()) != len(other.get_leaves()):
+            return False
+
+        self_leaves = self.get_leaves()
+        other_leaves = other.get_leaves()
+
+        self_leaves.sort()
+        other_leaves.sort()
+
+        return self_leaves == other_leaves
