@@ -1,9 +1,7 @@
-#include "../include/bst.h"
+#include "bst.h"
 #include <stdio.h>
 #include <stdlib.h>
-
-// Forward declarations
-void print_leaves(BSTNode *root);
+#include <string.h>
 
 // Create a new node
 BSTNode *create_node(int value) {
@@ -17,7 +15,7 @@ BSTNode *create_node(int value) {
 void bst_insert(BST *tree, int value) {
   if (tree->root == NULL) {
     tree->root = create_node(value);
-    tree->size++;
+    tree->size = 1;
     return;
   }
 
@@ -41,7 +39,7 @@ void bst_insert(BST *tree, int value) {
         current = current->right;
       }
     } else {
-      // Already exists
+      // Value already exists, don't insert duplicate
       break;
     }
   }
@@ -116,68 +114,108 @@ void delete_node(BST *tree, int value) {
 }
 
 void inorder(BSTNode *root) {
+  BST tree = {NULL, 0};
+  bst_insert(&tree, 20);
+  bst_insert(&tree, 10);
+  bst_insert(&tree, 30);
+
+  printf("Inorder traversal: ");
+  inorder(tree.root);
+}
+
+void inorder_capture(BSTNode *node, char *output) {
+  if (!node)
+    return;
+  inorder_capture(node->left, output);
+  char buf[16];
+  sprintf(buf, "%d ", node->value);
+  strcat(output, buf);
+  inorder_capture(node->right, output);
+}
+
+void preorder_capture(BSTNode *node, char *output) {
+  if (!node)
+    return;
+  char buf[16];
+  sprintf(buf, "%d ", node->value);
+  strcat(output, buf);
+  preorder_capture(node->left, output);
+  preorder_capture(node->right, output);
+}
+
+void postorder_capture(BSTNode *node, char *output) {
+  if (!node)
+    return;
+  postorder_capture(node->left, output);
+  postorder_capture(node->right, output);
+  char buf[16];
+  sprintf(buf, "%d ", node->value);
+  strcat(output, buf);
+}
+
+// Helper function to add leaves to output string
+void add_leaves_to_output(BSTNode *node, char *output) {
+  if (node == NULL)
+    return;
+
+  add_leaves_to_output(node->left, output);
+  if (node->left == NULL && node->right == NULL) {
+    char buf[16];
+    sprintf(buf, "%d ", node->value);
+    strcat(output, buf);
+  }
+  add_leaves_to_output(node->right, output);
+}
+
+// Helper function to add left boundary (excluding leaves)
+void add_left_boundary(BSTNode *node, char *output) {
+  if (node == NULL || (node->left == NULL && node->right == NULL))
+    return;
+
+  char buf[16];
+  sprintf(buf, "%d ", node->value);
+  strcat(output, buf);
+
+  if (node->left)
+    add_left_boundary(node->left, output);
+  else
+    add_left_boundary(node->right, output);
+}
+
+void add_right_boundary(BSTNode *node, char *output) {
+  if (node == NULL || (node->left == NULL && node->right == NULL))
+    return;
+
+  if (node->right)
+    add_right_boundary(node->right, output);
+  else
+    add_right_boundary(node->left, output);
+
+  char buf[16];
+  sprintf(buf, "%d ", node->value);
+  strcat(output, buf);
+}
+
+void boundary_traversal(BSTNode *root, char *output) {
   if (root == NULL)
     return;
 
-  inorder(root->left);
-  printf("%d ", root->value);
-  inorder(root->right);
-}
+  // Add root
+  char buf[16];
+  sprintf(buf, "%d ", root->value);
+  strcat(output, buf);
 
-void print_leaves(BSTNode *root) {
-  if (root == NULL)
-    return;
+  // If root is not a leaf, add left boundary, leaves, and right boundary
+  if (root->left != NULL || root->right != NULL) {
+    // Add left boundary (excluding leaves)
+    add_left_boundary(root->left, output);
 
-  print_leaves(root->left);
-  if (root->left == NULL && root->right == NULL) {
-    printf("%d ", root->value);
+    // Add leaf nodes
+    add_leaves_to_output(root, output);
+
+    // Add right boundary (excluding leaves) in reverse
+    add_right_boundary(root->right, output);
   }
-  print_leaves(root->right);
-}
-
-void boundary_traversal(BST *tree) {
-  if (tree->root == NULL)
-    return;
-
-  // print root
-  printf("%d ", tree->root->value);
-
-  // left boundary
-  BSTNode *current = tree->root->left;
-  while (current) {
-    if (current->left || current->right) {
-      printf("%d ", current->value);
-    }
-    if (current->left)
-      current = current->left;
-    else
-      current = current->right;
-  }
-
-  // leaf nodes (inorder)
-  print_leaves(tree->root);
-
-  // right boundary (in reverse)
-  BSTNode *stack[100];
-  int top = 0;
-
-  current = tree->root->right;
-
-  while (current) {
-    if (current->left || current->right) {
-      stack[top++] = current;
-    }
-    if (current->right)
-      current = current->right;
-    else
-      current = current->left;
-  }
-
-  while (top > 0) {
-    current = stack[--top];
-    printf("%d ", current->value);
-  }
-  printf("\n");
 }
 
 int is_empty(BST *tree) { return tree->root == NULL; }
