@@ -1,121 +1,22 @@
-#include "../include/node.h"
-#include <assert.h>
-#include <stdbool.h>
+#include "node.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-NodeSet *nodeset_create(size_t initial_capacity) {
-  NodeSet *set = malloc(sizeof(NodeSet));
-  set->nodes = malloc(sizeof(Node *) * initial_capacity);
-  set->size = 0;
-  set->capacity = initial_capacity;
-  return set;
-}
-
-void nodeset_destroy(NodeSet *set) {
-  if (set) {
-    free(set->nodes);
-    free(set);
-  }
-}
-
-bool nodeset_contains(NodeSet *set, Node *node) {
-  for (size_t i = 0; i < set->size; i++) {
-    if (set->nodes[i] == node) {
-      return true;
-    }
-  }
-  return false;
-}
-
-void nodeset_add(NodeSet *set, Node *node) {
-  if (nodeset_contains(set, node)) {
-    return;
-  }
-
-  if (set->size >= set->capacity) {
-    set->capacity *= 2;
-    set->nodes = realloc(set->nodes, sizeof(Node *) * set->capacity);
-  }
-
-  set->nodes[set->size++] = node;
-}
-
-void nodeset_remove(NodeSet *set, Node *node) {
-  for (size_t i = 0; i < set->size; i++) {
-    if (set->nodes[i] == node) {
-      for (size_t j = i; j < set->size - 1; j++) {
-        set->nodes[j] = set->nodes[j + 1];
-      }
-      set->size--;
-      return;
-    }
-  }
-}
-
-NodeQueue *queue_create(size_t capacity) {
-  NodeQueue *queue = malloc(sizeof(NodeQueue));
-  queue->nodes = malloc(sizeof(Node *) * capacity);
-  queue->front = 0;
-  queue->rear = 0;
-  queue->capacity = capacity;
-  return queue;
-}
-
-void queue_destroy(NodeQueue *queue) {
-  if (queue) {
-    free(queue->nodes);
-    free(queue);
-  }
-}
-
-bool queue_is_empty(NodeQueue *queue) { return queue->front == queue->rear; }
-
-void queue_enqueue(NodeQueue *queue, Node *node) {
-  if ((queue->rear + 1) % queue->capacity == queue->front) {
-    size_t new_capacity = queue->capacity * 2;
-    Node **new_nodes = malloc(sizeof(Node *) * new_capacity);
-
-    size_t i = 0;
-    size_t current = queue->front;
-    while (current != queue->rear) {
-      new_nodes[i++] = queue->nodes[current];
-      current = (current + 1) % queue->capacity;
-    }
-
-    free(queue->nodes);
-    queue->nodes = new_nodes;
-    queue->front = 0;
-    queue->rear = i;
-    queue->capacity = new_capacity;
-  }
-
-  queue->nodes[queue->rear] = node;
-  queue->rear = (queue->rear + 1) % queue->capacity;
-}
-
-Node *queue_dequeue(NodeQueue *queue) {
-  if (queue_is_empty(queue)) {
-    return NULL;
-  }
-
-  Node *node = queue->nodes[queue->front];
-  queue->front = (queue->front + 1) % queue->capacity;
-  return node;
-}
-
 Node *node_create(void *value, double node_id) {
-  Node *node = malloc(sizeof(Node));
-  node->value = value;
-  node->node_id = (node_id != 0.0) ? node_id : (double)(uintptr_t)node;
+  Node *node = (Node *)malloc(sizeof(Node));
+  if (!node)
+    return NULL;
 
+  node->value = value;
+  node->node_id = node_id;
   node->edges = nodeset_create(4);
-  node->incoming = nodeset_create(4);
-  node->outgoing = nodeset_create(4);
+  node->incoming = nodeset_create(2);
+  node->outgoing = nodeset_create(2);
   node->parent = NULL;
   node->children = nodeset_create(4);
-
+  node->left = NULL;
+  node->right = NULL;
   return node;
 }
 
@@ -129,191 +30,344 @@ void node_destroy(Node *node) {
   }
 }
 
-void add_edge(Node *self, Node *other, bool directed, bool bidirectional) {
-  assert(other != NULL);
+void *node_get_value(Node *node) { return node ? node->value : NULL; }
 
+Node *node_get_parent(Node *node) { return node ? node->parent : NULL; }
+
+NodeSet *node_get_children(Node *node) { return node ? node->children : NULL; }
+
+void add_edge(Node *self, Node *other, bool directed, bool bidirectional) {
+  if (!self || !other)
+    return;
+
+  nodeset_add(self->edges, other);
   if (directed) {
     nodeset_add(self->outgoing, other);
     nodeset_add(other->incoming, self);
-  } else {
-    if (bidirectional) {
-      nodeset_add(self->edges, other);
-      nodeset_add(other->edges, self);
-    } else {
-      nodeset_add(self->edges, other);
-    }
+  }
+  if (bidirectional) {
+    nodeset_add(other->edges, self);
   }
 }
 
 void add_child(Node *self, Node *child) {
-  assert(child != NULL);
-
-  if (child->parent) {
-    nodeset_remove(child->parent->children, child);
-  }
+  if (!self || !child)
+    return;
 
   child->parent = self;
   nodeset_add(self->children, child);
 }
 
-bool is_root(Node *node) { return node->parent == NULL; }
+bool is_root(Node *node) { return node ? node->parent == NULL : false; }
 
-bool is_leaf(Node *node) { return node->children->size == 0; }
+bool is_leaf(Node *node) {
+  return node ? nodeset_size(node->children) == 0 : true;
+}
 
 int height(Node *node) {
-  if (is_leaf(node)) {
+  if (!node || is_leaf(node))
     return 0;
+  int max = 0;
+  for (size_t i = 0; i < nodeset_size(node->children); i++) {
+    int h = height(node->children->nodes[i]);
+    if (h > max)
+      max = h;
   }
-
-  int max_height = 0;
-  for (size_t i = 0; i < node->children->size; i++) {
-    int child_height = height(node->children->nodes[i]);
-    if (child_height > max_height) {
-      max_height = child_height;
-    }
-  }
-
-  return 1 + max_height;
+  return max + 1;
 }
 
 int depth(Node *node) {
-  if (is_root(node)) {
-    return 0;
+  if (!node)
+    return -1;
+  int d = 0;
+  while (node->parent) {
+    d++;
+    node = node->parent;
   }
-
-  return 1 + depth(node->parent);
+  return d;
 }
 
 int num_leaves(Node *node) {
-  if (is_leaf(node)) {
+  if (!node)
+    return 0;
+  if (is_leaf(node))
     return 1;
+  int count = 0;
+  for (size_t i = 0; i < nodeset_size(node->children); i++) {
+    count += num_leaves(node->children->nodes[i]);
   }
-
-  int total = 0;
-  for (size_t i = 0; i < node->children->size; i++) {
-    total += num_leaves(node->children->nodes[i]);
-  }
-
-  return total;
+  return count;
 }
 
 int num_nodes(Node *node) {
-  int total = 1;
-  for (size_t i = 0; i < node->children->size; i++) {
-    total += num_nodes(node->children->nodes[i]);
+  if (!node)
+    return 0;
+  int count = 1;
+  for (size_t i = 0; i < nodeset_size(node->children); i++) {
+    count += num_nodes(node->children->nodes[i]);
   }
-
-  return total;
+  return count;
 }
-
-// Helper function for max - using a different name to avoid conflicts
-static int max_int(int a, int b) { return (a > b) ? a : b; }
 
 int diameter(Node *node) {
-  if (is_leaf(node)) {
+  if (!node)
     return 0;
+  int max1 = 0, max2 = 0;
+  for (size_t i = 0; i < nodeset_size(node->children); i++) {
+    int h = height(node->children->nodes[i]);
+    if (h > max1) {
+      max2 = max1;
+      max1 = h;
+    } else if (h > max2) {
+      max2 = h;
+    }
   }
-
-  size_t num_children = node->children->size;
-
-  if (num_children == 0) {
-    return 0;
-  } else if (num_children == 1) {
-    return 1 + height(node->children->nodes[0]);
-  } else {
-    // Get heights of all children
-    int *heights = malloc(sizeof(int) * num_children);
-    for (size_t i = 0; i < num_children; i++) {
-      heights[i] = height(node->children->nodes[i]);
-    }
-
-    // Sort heights in descending order (bubble sort)
-    for (size_t i = 0; i < num_children - 1; i++) {
-      for (size_t j = 0; j < num_children - 1 - i; j++) {
-        if (heights[j] < heights[j + 1]) {
-          int temp = heights[j];
-          heights[j] = heights[j + 1];
-          heights[j + 1] = temp;
-        }
-      }
-    }
-
-    int root_diameter = 2 + heights[0] + heights[1];
-
-    int max_child_diameter = 0;
-    for (size_t i = 0; i < num_children; i++) {
-      int child_diameter = diameter(node->children->nodes[i]);
-      if (child_diameter > max_child_diameter) {
-        max_child_diameter = child_diameter;
-      }
-    }
-
-    free(heights);
-    return max_int(root_diameter, max_child_diameter);
+  int max_child_dia = 0;
+  for (size_t i = 0; i < nodeset_size(node->children); i++) {
+    int d = diameter(node->children->nodes[i]);
+    if (d > max_child_dia)
+      max_child_dia = d;
   }
+  return max1 + max2 + 1 > max_child_dia ? max1 + max2 + 1 : max_child_dia;
 }
 
-// DFS traversal with callback function
-void dfs(Node *node, NodeSet *visited, void (*callback)(Node *)) {
-  if (nodeset_contains(visited, node)) {
-    return;
+// BST Operations
+Node *bst_insert(Node *root, void *value, double node_id,
+                 int (*compare)(const void *a, const void *b)) {
+  if (!root) {
+    return node_create(value, node_id);
   }
 
-  nodeset_add(visited, node);
-  callback(node);
-
-  for (size_t i = 0; i < node->children->size; i++) {
-    dfs(node->children->nodes[i], visited, callback);
+  int cmp = compare(value, root->value);
+  if (cmp < 0) {
+    root->left = bst_insert(root->left, value, node_id, compare);
+  } else if (cmp > 0) {
+    root->right = bst_insert(root->right, value, node_id, compare);
   }
+  // If equal, don't insert duplicate
+
+  return root;
+}
+
+Node *bst_search(Node *root, void *value,
+                 int (*compare)(const void *a, const void *b)) {
+  if (!root)
+    return NULL;
+
+  int cmp = compare(value, root->value);
+  if (cmp == 0)
+    return root;
+  else if (cmp < 0)
+    return bst_search(root->left, value, compare);
+  else
+    return bst_search(root->right, value, compare);
+}
+
+Node *bst_find_min(Node *root) {
+  if (!root)
+    return NULL;
+  while (root->left) {
+    root = root->left;
+  }
+  return root;
+}
+
+Node *bst_find_max(Node *root) {
+  if (!root)
+    return NULL;
+  while (root->right) {
+    root = root->right;
+  }
+  return root;
+}
+
+Node *bst_delete(Node *root, void *value,
+                 int (*compare)(const void *a, const void *b)) {
+  if (!root)
+    return NULL;
+
+  int cmp = compare(value, root->value);
+  if (cmp < 0) {
+    root->left = bst_delete(root->left, value, compare);
+  } else if (cmp > 0) {
+    root->right = bst_delete(root->right, value, compare);
+  } else {
+    // Node to be deleted found
+    if (!root->left) {
+      Node *temp = root->right;
+      node_destroy(root);
+      return temp;
+    } else if (!root->right) {
+      Node *temp = root->left;
+      node_destroy(root);
+      return temp;
+    }
+
+    // Node with two children
+    Node *temp = bst_find_min(root->right);
+    root->value = temp->value;
+    root->node_id = temp->node_id;
+    root->right = bst_delete(root->right, temp->value, compare);
+  }
+
+  return root;
 }
 
 void dfs_traverse(Node *start, void (*callback)(Node *)) {
-  NodeSet *visited = nodeset_create(16);
-  dfs(start, visited, callback);
-  nodeset_destroy(visited);
+  if (!start || !callback)
+    return;
+  callback(start);
+  for (size_t i = 0; i < nodeset_size(start->children); i++) {
+    dfs_traverse(start->children->nodes[i], callback);
+  }
 }
 
-// BFS traversal with callback function
 void bfs_traverse(Node *start, void (*callback)(Node *)) {
-  NodeSet *visited = nodeset_create(16);
-  NodeQueue *queue = queue_create(16);
-
-  nodeset_add(visited, start);
+  if (!start || !callback)
+    return;
+  NodeQueue *queue = queue_create(32);
   queue_enqueue(queue, start);
-
   while (!queue_is_empty(queue)) {
     Node *current = queue_dequeue(queue);
     callback(current);
-
-    for (size_t i = 0; i < current->children->size; i++) {
-      Node *child = current->children->nodes[i];
-      if (!nodeset_contains(visited, child)) {
-        nodeset_add(visited, child);
-        queue_enqueue(queue, child);
-      }
+    for (size_t i = 0; i < nodeset_size(current->children); i++) {
+      queue_enqueue(queue, current->children->nodes[i]);
     }
   }
-
-  nodeset_destroy(visited);
   queue_destroy(queue);
 }
 
-// Preorder traversal
+void inorder(Node *node, void (*callback)(Node *)) {
+  if (!node || !callback)
+    return;
+  inorder(node->left, callback);
+  callback(node);
+  inorder(node->right, callback);
+}
+
 void preorder(Node *node, void (*callback)(Node *)) {
+  if (!node || !callback)
+    return;
   callback(node);
-  for (size_t i = 0; i < node->children->size; i++) {
-    preorder(node->children->nodes[i], callback);
-  }
+  preorder(node->left, callback);
+  preorder(node->right, callback);
 }
 
-// Postorder traversal
 void postorder(Node *node, void (*callback)(Node *)) {
-  for (size_t i = 0; i < node->children->size; i++) {
-    postorder(node->children->nodes[i], callback);
-  }
+  if (!node || !callback)
+    return;
+  postorder(node->left, callback);
+  postorder(node->right, callback);
   callback(node);
 }
 
-void print_node(Node *node) {
-  printf("Node(id=%.0f, value=%p)\n", node->node_id, node->value);
+NodeSet *nodeset_create(size_t initial_capacity) {
+  NodeSet *set = (NodeSet *)malloc(sizeof(NodeSet));
+  if (!set)
+    return NULL;
+
+  set->nodes = (Node **)malloc(sizeof(Node *) * initial_capacity);
+  if (!set->nodes) {
+    free(set);
+    return NULL;
+  }
+
+  set->size = 0;
+  set->capacity = initial_capacity;
+  return set;
+}
+
+void nodeset_destroy(NodeSet *set) {
+  if (set) {
+    free(set->nodes);
+    free(set);
+  }
+}
+
+bool nodeset_contains(NodeSet *set, Node *node) {
+  if (!set || !node)
+    return false;
+  for (size_t i = 0; i < set->size; i++) {
+    if (set->nodes[i] == node)
+      return true;
+  }
+  return false;
+}
+
+void nodeset_add(NodeSet *set, Node *node) {
+  if (!set || !node || nodeset_contains(set, node))
+    return;
+
+  if (set->size == set->capacity) {
+    set->capacity *= 2;
+    set->nodes = (Node **)realloc(set->nodes, set->capacity * sizeof(Node *));
+    if (!set->nodes)
+      return; // Handle realloc failure
+  }
+  set->nodes[set->size++] = node;
+}
+
+void nodeset_remove(NodeSet *set, Node *node) {
+  if (!set || !node)
+    return;
+
+  for (size_t i = 0; i < set->size; i++) {
+    if (set->nodes[i] == node) {
+      memmove(&set->nodes[i], &set->nodes[i + 1],
+              sizeof(Node *) * (set->size - i - 1));
+      set->size--;
+      return;
+    }
+  }
+}
+
+size_t nodeset_size(NodeSet *set) { return set ? set->size : 0; }
+
+bool nodeset_is_empty(NodeSet *set) { return set ? set->size == 0 : true; }
+
+NodeQueue *queue_create(size_t capacity) {
+  NodeQueue *queue = (NodeQueue *)malloc(sizeof(NodeQueue));
+  if (!queue)
+    return NULL;
+
+  queue->nodes = (Node **)malloc(sizeof(Node *) * capacity);
+  if (!queue->nodes) {
+    free(queue);
+    return NULL;
+  }
+
+  queue->front = 0;
+  queue->rear = 0;
+  queue->capacity = capacity;
+  return queue;
+}
+
+void queue_destroy(NodeQueue *queue) {
+  if (queue) {
+    free(queue->nodes);
+    free(queue);
+  }
+}
+
+bool queue_is_empty(NodeQueue *queue) {
+  return queue ? queue->front == queue->rear : true;
+}
+
+void queue_enqueue(NodeQueue *queue, Node *node) {
+  if (!queue || !node)
+    return;
+
+  if (queue->rear == queue->capacity) {
+    queue->capacity *= 2;
+    queue->nodes = realloc(queue->nodes, sizeof(Node *) * queue->capacity);
+    if (!queue->nodes)
+      return; // Handle realloc failure
+  }
+  queue->nodes[queue->rear++] = node;
+}
+
+Node *queue_dequeue(NodeQueue *queue) {
+  if (!queue || queue_is_empty(queue))
+    return NULL;
+  return queue->nodes[queue->front++];
 }
