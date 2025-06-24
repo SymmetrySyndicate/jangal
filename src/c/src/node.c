@@ -15,8 +15,6 @@ Node *create_node(void *value, double node_id) {
   node->outgoing = nodeset_create(2);
   node->parent = NULL;
   node->children = nodeset_create(4);
-  node->left = NULL;
-  node->right = NULL;
   return node;
 }
 
@@ -167,24 +165,49 @@ void preorder_node(Node *node, void (*result)(Node *)) {
   if (!node || !result)
     return;
   result(node);
-  preorder_node(node->left, result);
-  preorder_node(node->right, result);
+  for (size_t i = 0; i < nodeset_size(node->children); i++) {
+    preorder_node(node->children->nodes[i], result);
+  }
 }
 
 void postorder_node(Node *node, void (*result)(Node *)) {
   if (!node || !result)
     return;
-  postorder_node(node->left, result);
-  postorder_node(node->right, result);
+  for (size_t i = 0; i < nodeset_size(node->children); i++) {
+    postorder_node(node->children->nodes[i], result);
+  }
   result(node);
 }
 
 void inorder_node(Node *node, void (*result)(Node *)) {
   if (!node || !result)
     return;
-  inorder_node(node->left, result);
-  result(node);
-  inorder_node(node->right, result);
+
+  size_t num_children = nodeset_size(node->children);
+
+  if (num_children == 0) {
+    result(node);
+  } else {
+    // Visit first half of children
+    for (size_t i = 0; i < num_children / 2; i++) {
+      inorder_node(node->children->nodes[i], result);
+    }
+
+    // Visit the node
+    result(node);
+
+    // Visit second half of children
+    for (size_t i = num_children / 2; i < num_children; i++) {
+      inorder_node(node->children->nodes[i], result);
+    }
+  }
+}
+
+// Comparison function for integers
+int compare_ints(const void *a, const void *b) {
+  int ia = *(const int *)a;
+  int ib = *(const int *)b;
+  return (ia > ib) - (ia < ib);
 }
 
 // Helper functions for building test trees
@@ -210,21 +233,6 @@ Node *build_sample_tree(void) {
   add_child(n3, n6);
   add_child(n4, n7);
   add_child(n5, n8);
-
-  return root;
-}
-
-Node *build_sample_bst(void) {
-  int *vals = malloc(7 * sizeof(int));
-  int values[] = {4, 2, 6, 1, 3, 5, 7};
-  for (int i = 0; i < 7; i++) {
-    vals[i] = values[i];
-  }
-
-  Node *root = NULL;
-  for (int i = 0; i < 7; i++) {
-    root = bst_insert(root, &vals[i], (double)vals[i], compare_ints);
-  }
 
   return root;
 }

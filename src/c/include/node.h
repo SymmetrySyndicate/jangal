@@ -13,9 +13,7 @@ typedef struct Node {
   // Tree structure
   struct Node *parent;
   struct NodeSet *children;
-  // Binary tree structure
-  struct Node *left;
-  struct Node *right;
+
 } Node;
 
 typedef struct NodeSet {
@@ -59,16 +57,6 @@ void bfs(Node *start, void (*result)(Node *));
 void preorder_node(Node *node, void (*result)(Node *));
 void postorder_node(Node *node, void (*result)(Node *));
 void inorder_node(Node *node, void (*result)(Node *));
-
-// Binary Search Tree operations
-Node *bst_insert(Node *root, void *value, double node_id,
-                 int (*compare)(const void *a, const void *b));
-Node *bst_search(Node *root, void *value,
-                 int (*compare)(const void *a, const void *b));
-Node *bst_delete(Node *root, void *value,
-                 int (*compare)(const void *a, const void *b));
-Node *bst_find_min(Node *root);
-Node *bst_find_max(Node *root);
 
 // Comparison function for integers
 int compare_ints(const void *a, const void *b);

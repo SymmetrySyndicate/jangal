@@ -225,37 +225,6 @@ void test_traversal() {
   printf("All traversal tests passed!\n");
 }
 
-void test_bst_operations() {
-  printf("Testing BST operations...\n");
-  Node *root = NULL;
-
-  // Test insertion
-  int vals[] = {4, 2, 6, 1, 3, 5, 7};
-  for (int i = 0; i < 7; i++) {
-    root = bst_insert(root, &vals[i], (double)vals[i], compare_ints);
-  }
-
-  // Test search
-  int search_val = 3;
-  Node *found = bst_search(root, &search_val, compare_ints);
-  assert(found != NULL);
-  assert(*(int *)found->value == 3);
-
-  // Test find min/max
-  Node *min_node = bst_find_min(root);
-  Node *max_node = bst_find_max(root);
-  assert(*(int *)min_node->value == 1);
-  assert(*(int *)max_node->value == 7);
-
-  // Test inorder traversal gives sorted order
-  reset_visited();
-  inorder_node(root, record_result);
-  int expected[] = {1, 2, 3, 4, 5, 6, 7};
-  assert(arrays_equal(visited_values, expected, 7));
-
-  printf("BST operations test passed!\n");
-}
-
 int main() {
   printf("Running Node tests\n");
   printf("==================\n");
@@ -269,7 +238,6 @@ int main() {
   test_preorder_output();
   test_postorder_output();
   test_traversal();
-  test_bst_operations();
 
   printf("==================\n");
   printf("All tests passed!\n");
