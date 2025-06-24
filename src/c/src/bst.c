@@ -12,6 +12,15 @@ BSTNode *create_node(int value) {
   return new_node;
 }
 
+// Fixed free_node function for BST
+void free_node(BSTNode *root) {
+  if (root == NULL)
+    return;
+  free_node(root->left);
+  free_node(root->right);
+  free(root);
+}
+
 void bst_insert(BST *tree, int value) {
   if (tree->root == NULL) {
     tree->root = create_node(value);
@@ -37,7 +46,6 @@ void bst_insert(BST *tree, int value) {
         current = current->right;
       }
     } else {
-      // Value already exists, don't insert duplicate
       break;
     }
   }
@@ -55,6 +63,74 @@ BSTNode *search(BST *tree, int value) {
     }
   }
   return NULL;
+}
+
+// Helper function to find the minimum value node in a subtree
+BSTNode *find_min(BSTNode *node) {
+  while (node->left != NULL) {
+    node = node->left;
+  }
+  return node;
+}
+
+// Helper function to delete a node recursively
+BSTNode *delete_node_recursive(BSTNode *root, int value) {
+  if (root == NULL) {
+    return NULL;
+  }
+
+  if (value < root->value) {
+    root->left = delete_node_recursive(root->left, value);
+  } else if (value > root->value) {
+    root->right = delete_node_recursive(root->right, value);
+  } else {
+    // Node to be deleted found
+
+    // Case 1: Node with no children (leaf node)
+    if (root->left == NULL && root->right == NULL) {
+      free(root);
+      return NULL;
+    }
+    // Case 2: Node with only one child
+    else if (root->left == NULL) {
+      BSTNode *temp = root->right;
+      free(root);
+      return temp;
+    } else if (root->right == NULL) {
+      BSTNode *temp = root->left;
+      free(root);
+      return temp;
+    }
+    // Case 3: Node with two children
+    else {
+      BSTNode *temp = find_min(root->right);
+      root->value = temp->value;
+      root->right = delete_node_recursive(root->right, temp->value);
+    }
+  }
+  return root;
+}
+
+void delete_node(BST *tree, int value) {
+  if (tree == NULL || tree->root == NULL) {
+    return;
+  }
+
+  BSTNode *node_to_delete = search(tree, value);
+  if (node_to_delete == NULL) {
+    return;
+  }
+
+  tree->root = delete_node_recursive(tree->root, value);
+  tree->size--;
+}
+
+int is_empty(BST *tree) { return tree->root == NULL; }
+
+void free_tree(BST *tree) {
+  free_node(tree->root);
+  tree->root = NULL;
+  tree->size = 0;
 }
 
 // Fixed array-based traversal functions
@@ -82,123 +158,74 @@ void postorder_bst(BSTNode *node, BSTNode **output, int *index) {
   output[(*index)++] = node;
 }
 
-// String capture functions for traversals
-void inorder_capture(BSTNode *node, char *output) {
-  if (!node)
-    return;
-  inorder_capture(node->left, output);
-  char buf[16];
-  sprintf(buf, "%d ", node->value);
-  strcat(output, buf);
-  inorder_capture(node->right, output);
-}
-
-void preorder_capture(BSTNode *node, char *output) {
-  if (!node)
-    return;
-  char buf[16];
-  sprintf(buf, "%d ", node->value);
-  strcat(output, buf);
-  preorder_capture(node->left, output);
-  preorder_capture(node->right, output);
-}
-
-void postorder_capture(BSTNode *node, char *output) {
-  if (!node)
-    return;
-  postorder_capture(node->left, output);
-  postorder_capture(node->right, output);
-  char buf[16];
-  sprintf(buf, "%d ", node->value);
-  strcat(output, buf);
-}
-
-// Helper function to add left boundary (excluding leaves)
-void add_left_boundary(BSTNode *node, char *output) {
-  if (node == NULL || (node->left == NULL && node->right == NULL))
-    return;
-  char buf[16];
-  sprintf(buf, "%d ", node->value);
-  strcat(output, buf);
-  if (node->left)
-    add_left_boundary(node->left, output);
-  else
-    add_left_boundary(node->right, output);
-}
-
-void add_right_boundary(BSTNode *node, char *output) {
-  if (node == NULL || (node->left == NULL && node->right == NULL))
-    return;
-  if (node->right)
-    add_right_boundary(node->right, output);
-  else
-    add_right_boundary(node->left, output);
-  char buf[16];
-  sprintf(buf, "%d ", node->value);
-  strcat(output, buf);
-}
-
-// Add leaves to output (needed for boundary traversal)
-void add_leaves_to_output(BSTNode *node, char *output) {
-  if (node == NULL)
-    return;
-
-  if (node->left == NULL && node->right == NULL) {
-    char buf[16];
-    sprintf(buf, "%d ", node->value);
-    strcat(output, buf);
-    return;
-  }
-
-  add_leaves_to_output(node->left, output);
-  add_leaves_to_output(node->right, output);
-}
-
-// Fixed boundary traversal function
-void boundary_traversal(BSTNode *root, char *output) {
+// Array-based boundary traversal function
+void boundary_traversal_bst(BSTNode *root, BSTNode **output, int *index) {
   if (root == NULL) {
-    output[0] = '\0';
     return;
   }
 
-  output[0] = '\0';
+  output[(*index)++] = root;
 
-  // Add root
-  char buf[16];
-  sprintf(buf, "%d ", root->value);
-  strcat(output, buf);
-
-  // If root is not a leaf, add left boundary, leaves, and right boundary
   if (root->left != NULL || root->right != NULL) {
-    // Add left boundary (excluding leaves)
-    add_left_boundary(root->left, output);
+    BSTNode *current = root->left;
+    while (current != NULL) {
+      if (current->left != NULL || current->right != NULL) {
+        output[(*index)++] = current;
+        if (current->left != NULL) {
+          current = current->left;
+        } else {
+          current = current->right;
+        }
+      } else {
+        break; // Reached a leaf
+      }
+    }
 
-    // Add leaf nodes
-    add_leaves_to_output(root, output);
+    BSTNode **stack = malloc(1000 * sizeof(BSTNode *));
+    int stack_top = 0;
+    stack[stack_top++] = root;
+
+    while (stack_top > 0) {
+      BSTNode *node = stack[--stack_top];
+
+      if (node->right != NULL) {
+        stack[stack_top++] = node->right;
+      }
+      if (node->left != NULL) {
+        stack[stack_top++] = node->left;
+      }
+
+      if (node->left == NULL && node->right == NULL) {
+        output[(*index)++] = node;
+      }
+    }
+    free(stack);
 
     // Add right boundary (excluding leaves) in reverse
-    add_right_boundary(root->right, output);
+    current = root->right;
+    BSTNode **right_boundary = malloc(1000 * sizeof(BSTNode *));
+    int right_count = 0;
+
+    while (current != NULL) {
+      if (current->left != NULL || current->right != NULL) {
+        right_boundary[right_count++] = current;
+        if (current->right != NULL) {
+          current = current->right;
+        } else {
+          current = current->left;
+        }
+      } else {
+        break;
+      }
+    }
+
+    for (int i = right_count - 1; i >= 0; i--) {
+      output[(*index)++] = right_boundary[i];
+    }
+    free(right_boundary);
   }
 }
 
-int is_empty(BST *tree) { return tree->root == NULL; }
-
-// Fixed free_node function for BST
-void free_node(BSTNode *root) {
-  if (root == NULL)
-    return;
-  free_node(root->left);
-  free_node(root->right);
-  free(root);
-}
-
-void free_tree(BST *tree) {
-  free_node(tree->root);
-  tree->root = NULL;
-  tree->size = 0;
-}
-
-// Simple traversal functions
 void inorder(BSTNode *root) {
   if (root == NULL)
     return;
