@@ -19,40 +19,21 @@ void assert_equal(const char *expected, const char *actual, const char *label) {
   }
 }
 
-// Simple inorder traversal for string output (for testing purposes)
-void inorder_to_string(BSTNode *node, char *output) {
-  if (!node)
-    return;
-
-  inorder_to_string(node->left, output);
-  char buf[16];
-  sprintf(buf, "%d ", node->value);
-  strcat(output, buf);
-  inorder_to_string(node->right, output);
+// Helper function to compare arrays
+int arrays_equal(int *a, int *b, int n) {
+  for (int i = 0; i < n; i++) {
+    if (a[i] != b[i]) {
+      return 0;
+    }
+  }
+  return 1;
 }
 
-// Simple preorder traversal for string output
-void preorder_to_string(BSTNode *node, char *output) {
-  if (!node)
-    return;
-
-  char buf[16];
-  sprintf(buf, "%d ", node->value);
-  strcat(output, buf);
-  preorder_to_string(node->left, output);
-  preorder_to_string(node->right, output);
-}
-
-// Simple postorder traversal for string output
-void postorder_to_string(BSTNode *node, char *output) {
-  if (!node)
-    return;
-
-  postorder_to_string(node->left, output);
-  postorder_to_string(node->right, output);
-  char buf[16];
-  sprintf(buf, "%d ", node->value);
-  strcat(output, buf);
+// Helper function to collect values from nodes array into values array
+void collect_values(BSTNode **nodes, int *values, int count) {
+  for (int i = 0; i < count; i++) {
+    values[i] = nodes[i]->value;
+  }
 }
 
 // Tests
@@ -66,18 +47,85 @@ void test_bst_inorder() {
   printf("Tree structure: 20 (root), 10 (left), 30 (right)\n");
   printf("Expected inorder: 10 20 30\n");
 
-  char output[MAX_OUTPUT] = "";
-  inorder_to_string(tree.root, output);
-  printf("Actual inorder: %s\n", output);
+  BSTNode *inorder_nodes[MAX_NODES];
+  int in_index = 0;
+  inorder_bst(tree.root, inorder_nodes, &in_index);
 
-  assert_equal("10 20 30 ", output, "Inorder traversal");
+  // Convert nodes to values array
+  int inorder_values[MAX_NODES];
+  collect_values(inorder_nodes, inorder_values, in_index);
 
+  // Expected values
+  int inorder_expected[] = {10, 20, 30};
+
+  assert(in_index == 3);
+  assert(arrays_equal(inorder_values, inorder_expected, 3));
+
+  printf("PASS: Inorder traversal correct\n");
+  free_tree(&tree);
+  printf("\n");
+}
+
+void test_bst_preorder() {
+  printf("Testing preorder traversal...\n");
+  BST tree = {NULL, 0};
+  bst_insert(&tree, 20);
+  bst_insert(&tree, 10);
+  bst_insert(&tree, 30);
+
+  printf("Tree structure: 20 (root), 10 (left), 30 (right)\n");
+  printf("Expected preorder: 20 10 30\n");
+
+  BSTNode *preorder_nodes[MAX_NODES];
+  int pre_index = 0;
+  preorder_bst(tree.root, preorder_nodes, &pre_index);
+
+  // Convert nodes to values array
+  int preorder_values[MAX_NODES];
+  collect_values(preorder_nodes, preorder_values, pre_index);
+
+  // Expected values
+  int preorder_expected[] = {20, 10, 30};
+
+  assert(pre_index == 3);
+  assert(arrays_equal(preorder_values, preorder_expected, 3));
+
+  printf("PASS: Preorder traversal correct\n");
+  free_tree(&tree);
+  printf("\n");
+}
+
+void test_bst_postorder() {
+  printf("Testing postorder traversal...\n");
+  BST tree = {NULL, 0};
+  bst_insert(&tree, 20);
+  bst_insert(&tree, 10);
+  bst_insert(&tree, 30);
+
+  printf("Tree structure: 20 (root), 10 (left), 30 (right)\n");
+  printf("Expected postorder: 10 30 20\n");
+
+  BSTNode *postorder_nodes[MAX_NODES];
+  int post_index = 0;
+  postorder_bst(tree.root, postorder_nodes, &post_index);
+
+  // Convert nodes to values array
+  int postorder_values[MAX_NODES];
+  collect_values(postorder_nodes, postorder_values, post_index);
+
+  // Expected values
+  int postorder_expected[] = {10, 30, 20};
+
+  assert(post_index == 3);
+  assert(arrays_equal(postorder_values, postorder_expected, 3));
+
+  printf("PASS: Postorder traversal correct\n");
   free_tree(&tree);
   printf("\n");
 }
 
 void test_bst_array_traversals() {
-  printf("Testing array-based traversals...\n");
+  printf("Testing all array-based traversals together...\n");
   BST tree = {NULL, 0};
   bst_insert(&tree, 20);
   bst_insert(&tree, 10);
@@ -88,36 +136,39 @@ void test_bst_array_traversals() {
   BSTNode *postorder_nodes[MAX_NODES];
   int in_index = 0, pre_index = 0, post_index = 0;
 
-  // Test the actual functions from your implementation
+  // Get all traversals
   inorder_bst(tree.root, inorder_nodes, &in_index);
   preorder_bst(tree.root, preorder_nodes, &pre_index);
   postorder_bst(tree.root, postorder_nodes, &post_index);
 
-  printf("Inorder array size: %d\n", in_index);
-  printf("Preorder array size: %d\n", pre_index);
-  printf("Postorder array size: %d\n", post_index);
+  // Convert to values arrays
+  int inorder_values[MAX_NODES];
+  int preorder_values[MAX_NODES];
+  int postorder_values[MAX_NODES];
+
+  collect_values(inorder_nodes, inorder_values, in_index);
+  collect_values(preorder_nodes, preorder_values, pre_index);
+  collect_values(postorder_nodes, postorder_values, post_index);
+
+  // Expected values
+  int inorder_expected[] = {10, 20, 30};
+  int preorder_expected[] = {20, 10, 30};
+  int postorder_expected[] = {10, 30, 20};
 
   // Verify sizes
-  if (in_index == 3 && pre_index == 3 && post_index == 3) {
-    printf("PASS: Array traversal sizes correct\n");
-  } else {
-    printf("FAIL: Array traversal sizes incorrect\n");
-    exit(1);
-  }
+  assert(in_index == 3);
+  assert(pre_index == 3);
+  assert(post_index == 3);
 
-  // Verify inorder values
-  if (inorder_nodes[0]->value == 10 && inorder_nodes[1]->value == 20 &&
-      inorder_nodes[2]->value == 30) {
-    printf("PASS: Inorder array values correct\n");
-  } else {
-    printf("FAIL: Inorder array values incorrect\n");
-    exit(1);
-  }
+  // Verify values
+  assert(arrays_equal(inorder_values, inorder_expected, 3));
+  assert(arrays_equal(preorder_values, preorder_expected, 3));
+  assert(arrays_equal(postorder_values, postorder_expected, 3));
 
+  printf("PASS: All array traversals correct\n");
   free_tree(&tree);
   printf("\n");
 }
-
 void test_complex_traversals() {
   printf("Testing complex traversals...\n");
   //        5
@@ -149,25 +200,62 @@ void test_complex_traversals() {
   printf("     / \\   \\\n");
   printf("    1   4   9\n\n");
 
-  char in_out[MAX_OUTPUT] = "";
-  char pre_out[MAX_OUTPUT] = "";
-  char post_out[MAX_OUTPUT] = "";
+  // Test inorder traversal (BST)
+  BSTNode *inorder_nodes[MAX_NODES];
+  int in_index = 0;
+  inorder_bst(tree.root, inorder_nodes, &in_index);
 
-  inorder_to_string(tree.root, in_out);
-  preorder_to_string(tree.root, pre_out);
-  postorder_to_string(tree.root, post_out);
+  int inorder_values[MAX_NODES];
+  collect_values(inorder_nodes, inorder_values, in_index);
 
-  printf("Expected inorder:  1 3 4 5 8 9\n");
-  printf("Actual inorder:    %s\n", in_out);
-  assert_equal("1 3 4 5 8 9 ", in_out, "Complex inorder");
+  int inorder_expected[] = {1, 3, 4, 5, 8, 9};
+  printf("Expected inorder: 1 3 4 5 8 9\n");
+  printf("Actual inorder: ");
+  for (int i = 0; i < in_index; i++) {
+    printf("%d ", inorder_values[i]);
+  }
+  printf("\n");
+  assert(in_index == 6);
+  assert(arrays_equal(inorder_values, inorder_expected, 6));
+  printf("PASS: Complex inorder traversal correct\n");
 
+  // Test preorder traversal (BST)
+  BSTNode *preorder_nodes[MAX_NODES];
+  int pre_index = 0;
+  preorder_bst(tree.root, preorder_nodes, &pre_index);
+
+  int preorder_values[MAX_NODES];
+  collect_values(preorder_nodes, preorder_values, pre_index);
+
+  int preorder_expected[] = {5, 3, 1, 4, 8, 9};
   printf("Expected preorder: 5 3 1 4 8 9\n");
-  printf("Actual preorder:   %s\n", pre_out);
-  assert_equal("5 3 1 4 8 9 ", pre_out, "Complex preorder");
+  printf("Actual preorder: ");
+  for (int i = 0; i < pre_index; i++) {
+    printf("%d ", preorder_values[i]);
+  }
+  printf("\n");
+  assert(pre_index == 6);
+  assert(arrays_equal(preorder_values, preorder_expected, 6));
+  printf("PASS: Complex preorder traversal correct\n");
 
+  // Test postorder traversal (BST)
+  BSTNode *postorder_nodes[MAX_NODES];
+  int post_index = 0;
+  postorder_bst(tree.root, postorder_nodes, &post_index);
+
+  int postorder_values[MAX_NODES];
+  collect_values(postorder_nodes, postorder_values, post_index);
+
+  int postorder_expected[] = {1, 4, 3, 9, 8, 5};
   printf("Expected postorder: 1 4 3 9 8 5\n");
-  printf("Actual postorder:   %s\n", post_out);
-  assert_equal("1 4 3 9 8 5 ", post_out, "Complex postorder");
+  printf("Actual postorder: ");
+  for (int i = 0; i < post_index; i++) {
+    printf("%d ", postorder_values[i]);
+  }
+  printf("\n");
+  assert(post_index == 6);
+  assert(arrays_equal(postorder_values, postorder_expected, 6));
+  printf("PASS: Complex postorder traversal correct\n");
 
   // Clean up manually created tree
   free(n1);
@@ -211,14 +299,20 @@ void test_boundary_traversal() {
 
   BST tree = {n1, 8};
 
-  char boundary_output[MAX_OUTPUT] = "";
-  boundary_traversal(tree.root, boundary_output);
+  // Use array-based boundary traversal
+  BSTNode *boundary_nodes[MAX_NODES];
+  int boundary_index = 0;
+  boundary_traversal_bst(tree.root, boundary_nodes, &boundary_index);
 
-  printf("Boundary traversal output: %s\n", boundary_output);
-  // Expected: root + left boundary + leaves + right boundary
-  // Root: 1, Left boundary: 2 4, Leaves: 6 7 8 3, Right boundary: none (3 is
-  // already a leaf) But since we include leaves in the leaf traversal, we get:
-  // 1 2 4 6 7 8 3
+  // Convert nodes to values array
+  int boundary_values[MAX_NODES];
+  collect_values(boundary_nodes, boundary_values, boundary_index);
+
+  int boundary_expected[] = {1, 2, 4, 6, 7, 8, 3};
+
+  assert(boundary_index == 7);
+  assert(arrays_equal(boundary_values, boundary_expected, 7));
+  printf("PASS: Boundary traversal correct\n");
 
   // Clean up
   free(n6);
@@ -288,22 +382,124 @@ void test_bst_operations() {
   bst_insert(&tree, 50);
   bst_insert(&tree, 30);
   bst_insert(&tree, 70);
+  bst_insert(&tree, 20);
+  bst_insert(&tree, 40);
+  bst_insert(&tree, 60);
+  bst_insert(&tree, 80);
 
+  // Test search for existing values
   BSTNode *found = search(&tree, 30);
-  if (found && found->value == 30) {
-    printf("PASS: Search found correct node\n");
-  } else {
-    printf("FAIL: Search failed\n");
-    exit(1);
-  }
+  assert(found != NULL && found->value == 30);
+  printf("PASS: Search found correct node (30)\n");
 
+  found = search(&tree, 50);
+  assert(found != NULL && found->value == 50);
+  printf("PASS: Search found correct node (50)\n");
+
+  found = search(&tree, 80);
+  assert(found != NULL && found->value == 80);
+  printf("PASS: Search found correct node (80)\n");
+
+  // Test search for non-existent values
   BSTNode *not_found = search(&tree, 100);
-  if (not_found == NULL) {
-    printf("PASS: Search correctly returned NULL for non-existent value\n");
-  } else {
-    printf("FAIL: Search should have returned NULL\n");
-    exit(1);
-  }
+  assert(not_found == NULL);
+  printf("PASS: Search correctly returned NULL for non-existent value (100)\n");
+
+  not_found = search(&tree, 25);
+  assert(not_found == NULL);
+  printf("PASS: Search correctly returned NULL for non-existent value (25)\n");
+
+  free_tree(&tree);
+  printf("\n");
+}
+
+void test_delete_operations() {
+  printf("Testing delete operations...\n");
+  BST tree = {NULL, 0};
+
+  // Build a tree:       50
+  //                   /  \
+  //                  30   70
+  //                 / \   / \
+  //                20 40 60 80
+
+  bst_insert(&tree, 50);
+  bst_insert(&tree, 30);
+  bst_insert(&tree, 70);
+  bst_insert(&tree, 20);
+  bst_insert(&tree, 40);
+  bst_insert(&tree, 60);
+  bst_insert(&tree, 80);
+
+  assert(tree.size == 7);
+  printf("PASS: Tree size correct after insertion (7)\n");
+
+  // Test deleting a leaf node
+  delete_node(&tree, 20);
+  assert(search(&tree, 20) == NULL);
+  assert(tree.size == 6);
+  printf("PASS: Deleted leaf node (20)\n");
+
+  // Test deleting a node with one child
+  delete_node(&tree, 40);
+  assert(search(&tree, 40) == NULL);
+  assert(tree.size == 5);
+  printf("PASS: Deleted node with one child (40)\n");
+
+  // Test deleting a node with two children
+  delete_node(&tree, 30);
+  assert(search(&tree, 30) == NULL);
+  assert(tree.size == 4);
+  printf("PASS: Deleted node with two children (30)\n");
+
+  // Test deleting the root
+  delete_node(&tree, 50);
+  assert(search(&tree, 50) == NULL);
+  assert(tree.size == 3);
+  printf("PASS: Deleted root node (50)\n");
+
+  // Test deleting remaining nodes
+  delete_node(&tree, 60);
+  delete_node(&tree, 70);
+  delete_node(&tree, 80);
+  assert(tree.size == 0);
+  assert(tree.root == NULL);
+  printf("PASS: Deleted all remaining nodes\n");
+
+  // Test deleting from empty tree
+  delete_node(&tree, 100);
+  assert(tree.size == 0);
+  assert(tree.root == NULL);
+  printf("PASS: Delete from empty tree handled correctly\n");
+
+  printf("\n");
+}
+
+void test_search_edge_cases() {
+  printf("Testing search edge cases...\n");
+  BST tree = {NULL, 0};
+
+  // Test search on empty tree
+  BSTNode *result = search(&tree, 10);
+  assert(result == NULL);
+  printf("PASS: Search on empty tree returned NULL\n");
+
+  // Test search on single node tree
+  bst_insert(&tree, 42);
+  result = search(&tree, 42);
+  assert(result != NULL && result->value == 42);
+  printf("PASS: Search found single node (42)\n");
+
+  result = search(&tree, 10);
+  assert(result == NULL);
+  printf("PASS: Search for non-existent value in single node tree returned "
+         "NULL\n");
+
+  bst_insert(&tree, 42); // This should not be inserted due to duplicate
+  result = search(&tree, 42);
+  assert(result != NULL && result->value == 42);
+  printf(
+      "PASS: Search found existing value after duplicate insertion attempt\n");
 
   free_tree(&tree);
   printf("\n");
@@ -345,13 +541,14 @@ void test_single_node_tree() {
     exit(1);
   }
 
-  char output[MAX_OUTPUT] = "";
-  inorder_to_string(tree.root, output);
-  assert_equal("42 ", output, "Single node inorder");
+  // Test array-based boundary traversal for single node
+  BSTNode *boundary_nodes[MAX_NODES];
+  int boundary_index = 0;
+  boundary_traversal_bst(tree.root, boundary_nodes, &boundary_index);
 
-  char boundary_output[MAX_OUTPUT] = "";
-  boundary_traversal(tree.root, boundary_output);
-  assert_equal("42 ", boundary_output, "Single node boundary");
+  assert(boundary_index == 1);
+  assert(boundary_nodes[0]->value == 42);
+  printf("PASS: Single node boundary traversal correct\n");
 
   free_tree(&tree);
   printf("\n");
@@ -367,6 +564,8 @@ int main() {
   test_inorder_bst();
   test_preorder_bst();
   test_bst_operations();
+  test_delete_operations();
+  test_search_edge_cases();
   test_empty_tree();
   test_single_node_tree();
 
