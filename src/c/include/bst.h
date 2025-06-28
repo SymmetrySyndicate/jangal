@@ -12,16 +12,15 @@ BSTNode *create_node(int value);
 void free_node(BSTNode *root);
 
 // Traversal functions
-void inorder(BSTNode *root);
+void inorder_print(BSTNode *root);
 
 // Array-based traversals
-void inorder_bst(BSTNode *node, BSTNode **output, int *index);
-void preorder_bst(BSTNode *node, BSTNode **output, int *index);
-void postorder_bst(BSTNode *node, BSTNode **output, int *index);
+void inorder(BSTNode *node, BSTNode **output, int *index);
+void preorder(BSTNode *node, BSTNode **output, int *index);
+void postorder(BSTNode *node, BSTNode **output, int *index);
 
 // Boundary traversal functions
-void print_leaves(BSTNode *root);
-void boundary_traversal_bst(BSTNode *root, BSTNode **output, int *index);
+void boundary_traversal(BSTNode *root, BSTNode **output, int *index);
 
 typedef struct {
   BSTNode *root;

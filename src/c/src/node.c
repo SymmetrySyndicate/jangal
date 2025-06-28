@@ -161,46 +161,22 @@ void bfs(Node *start, void (*result)(Node *)) {
   queue_destroy(queue);
 }
 
-void preorder_node(Node *node, void (*result)(Node *)) {
+void preorder(Node *node, void (*result)(Node *)) {
   if (!node || !result)
     return;
   result(node);
   for (size_t i = 0; i < nodeset_size(node->children); i++) {
-    preorder_node(node->children->nodes[i], result);
+    preorder(node->children->nodes[i], result);
   }
 }
 
-void postorder_node(Node *node, void (*result)(Node *)) {
+void postorder(Node *node, void (*result)(Node *)) {
   if (!node || !result)
     return;
   for (size_t i = 0; i < nodeset_size(node->children); i++) {
-    postorder_node(node->children->nodes[i], result);
+    postorder(node->children->nodes[i], result);
   }
   result(node);
-}
-
-void inorder_node(Node *node, void (*result)(Node *)) {
-  if (!node || !result)
-    return;
-
-  size_t num_children = nodeset_size(node->children);
-
-  if (num_children == 0) {
-    result(node);
-  } else {
-    // Visit first half of children
-    for (size_t i = 0; i < num_children / 2; i++) {
-      inorder_node(node->children->nodes[i], result);
-    }
-
-    // Visit the node
-    result(node);
-
-    // Visit second half of children
-    for (size_t i = num_children / 2; i < num_children; i++) {
-      inorder_node(node->children->nodes[i], result);
-    }
-  }
 }
 
 // Comparison function for integers
@@ -208,33 +184,6 @@ int compare_ints(const void *a, const void *b) {
   int ia = *(const int *)a;
   int ib = *(const int *)b;
   return (ia > ib) - (ia < ib);
-}
-
-// Helper functions for building test trees
-Node *build_sample_tree(void) {
-  int *vals = malloc(8 * sizeof(int));
-  for (int i = 0; i < 8; i++) {
-    vals[i] = i + 1;
-  }
-
-  Node *root = create_node(&vals[0], 1.0);
-  Node *n2 = create_node(&vals[1], 2.0);
-  Node *n3 = create_node(&vals[2], 3.0);
-  Node *n4 = create_node(&vals[3], 4.0);
-  Node *n5 = create_node(&vals[4], 5.0);
-  Node *n6 = create_node(&vals[5], 6.0);
-  Node *n7 = create_node(&vals[6], 7.0);
-  Node *n8 = create_node(&vals[7], 8.0);
-
-  add_child(root, n2);
-  add_child(root, n3);
-  add_child(n2, n4);
-  add_child(n2, n5);
-  add_child(n3, n6);
-  add_child(n4, n7);
-  add_child(n5, n8);
-
-  return root;
 }
 
 // NodeSet implementation

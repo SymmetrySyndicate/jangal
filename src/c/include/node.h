@@ -54,9 +54,8 @@ int diameter(Node *node);
 // Traversal with callbacks
 void dfs(Node *start, void (*result)(Node *));
 void bfs(Node *start, void (*result)(Node *));
-void preorder_node(Node *node, void (*result)(Node *));
-void postorder_node(Node *node, void (*result)(Node *));
-void inorder_node(Node *node, void (*result)(Node *));
+void preorder(Node *node, void (*result)(Node *));
+void postorder(Node *node, void (*result)(Node *));
 
 // Comparison function for integers
 int compare_ints(const void *a, const void *b);

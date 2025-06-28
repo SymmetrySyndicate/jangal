@@ -41,7 +41,12 @@ void test_basic_operations() {
 }
 
 int main() {
-  printf("Running tests\n");
+  printf("==================\n");
+  printf("Running vEB tests...\n\n");
+
   test_basic_operations();
+
+  printf("All vEB tests passed!\n");
+  printf("==================\n");
   return 0;
 }
