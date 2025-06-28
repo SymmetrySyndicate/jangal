@@ -134,32 +134,32 @@ void free_tree(BST *tree) {
 }
 
 // Fixed array-based traversal functions
-void inorder_bst(BSTNode *node, BSTNode **output, int *index) {
+void inorder(BSTNode *node, BSTNode **output, int *index) {
   if (!node)
     return;
-  inorder_bst(node->left, output, index);
+  inorder(node->left, output, index);
   output[(*index)++] = node;
-  inorder_bst(node->right, output, index);
+  inorder(node->right, output, index);
 }
 
-void preorder_bst(BSTNode *node, BSTNode **output, int *index) {
+void preorder(BSTNode *node, BSTNode **output, int *index) {
   if (!node)
     return;
   output[(*index)++] = node;
-  preorder_bst(node->left, output, index);
-  preorder_bst(node->right, output, index);
+  preorder(node->left, output, index);
+  preorder(node->right, output, index);
 }
 
-void postorder_bst(BSTNode *node, BSTNode **output, int *index) {
+void postorder(BSTNode *node, BSTNode **output, int *index) {
   if (!node)
     return;
-  postorder_bst(node->left, output, index);
-  postorder_bst(node->right, output, index);
+  postorder(node->left, output, index);
+  postorder(node->right, output, index);
   output[(*index)++] = node;
 }
 
 // Array-based boundary traversal function
-void boundary_traversal_bst(BSTNode *root, BSTNode **output, int *index) {
+void boundary_traversal(BSTNode *root, BSTNode **output, int *index) {
   if (root == NULL) {
     return;
   }
@@ -224,23 +224,4 @@ void boundary_traversal_bst(BSTNode *root, BSTNode **output, int *index) {
     }
     free(right_boundary);
   }
-}
-
-void inorder(BSTNode *root) {
-  if (root == NULL)
-    return;
-  inorder(root->left);
-  printf("%d ", root->value);
-  inorder(root->right);
-}
-
-void print_leaves(BSTNode *root) {
-  if (root == NULL)
-    return;
-  if (root->left == NULL && root->right == NULL) {
-    printf("%d ", root->value);
-    return;
-  }
-  print_leaves(root->left);
-  print_leaves(root->right);
 }

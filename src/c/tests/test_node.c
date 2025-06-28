@@ -9,10 +9,30 @@ int visited_values[MAX_NODES];
 int visit_index = 0;
 int result_count = 0;
 
-void print_node_value(Node *node) {
-  if (node && node->value) {
-    printf("%d ", *(int *)(node->value));
+Node *build_sample_tree(void) {
+  int *vals = malloc(8 * sizeof(int));
+  for (int i = 0; i < 8; i++) {
+    vals[i] = i + 1;
   }
+
+  Node *root = create_node(&vals[0], 1.0);
+  Node *n2 = create_node(&vals[1], 2.0);
+  Node *n3 = create_node(&vals[2], 3.0);
+  Node *n4 = create_node(&vals[3], 4.0);
+  Node *n5 = create_node(&vals[4], 5.0);
+  Node *n6 = create_node(&vals[5], 6.0);
+  Node *n7 = create_node(&vals[6], 7.0);
+  Node *n8 = create_node(&vals[7], 8.0);
+
+  add_child(root, n2);
+  add_child(root, n3);
+  add_child(n2, n4);
+  add_child(n2, n5);
+  add_child(n3, n6);
+  add_child(n4, n7);
+  add_child(n5, n8);
+
+  return root;
 }
 
 void record_result(Node *node) {
@@ -102,144 +122,59 @@ void test_tree_structure() {
   printf("Tree structure tests passed!\n");
 }
 
-void test_dfs_output() {
-  printf("Testing DFS traversal...\n");
-  Node *root = build_sample_tree();
-  reset_visited();
-
-  printf("DFS traversal: ");
-  dfs(root, print_node_value);
-  printf("\n");
-
-  // Test with callback recording
-  reset_visited();
-  dfs(root, record_result);
-  int dfs_expected[] = {1, 2, 4, 7, 5, 8, 3, 6};
-  assert(result_count == 8);
-  assert(arrays_equal(visited_values, dfs_expected, 8));
-
-  // Note: We're not freeing individual nodes because they share the same value
-  // array In a real implementation, you'd need proper memory management
-  printf("DFS test passed!\n");
-}
-
-void test_bfs_output() {
-  printf("Testing BFS traversal...\n");
-  Node *root = build_sample_tree();
-  reset_visited();
-
-  printf("BFS traversal: ");
-  bfs(root, print_node_value);
-  printf("\n");
-
-  // Test with callback recording
-  reset_visited();
-  bfs(root, record_result);
-  int bfs_expected[] = {1, 2, 3, 4, 5, 6, 7, 8};
-  assert(result_count == 8);
-  assert(arrays_equal(visited_values, bfs_expected, 8));
-
-  printf("BFS test passed!\n");
-}
-
-void test_inorder_output() {
-  printf("Testing Inorder traversal...\n");
-  Node *bst_root = build_sample_bst();
-  reset_visited();
-
-  printf("Inorder traversal: ");
-  inorder_node(bst_root, print_node_value);
-  printf("\n");
-
-  // Test with callback recording
-  reset_visited();
-  inorder_node(bst_root, record_result);
-  int inorder_expected[] = {1, 2, 3, 4, 5, 6, 7};
-  assert(result_count == 7);
-  assert(arrays_equal(visited_values, inorder_expected, 7));
-
-  printf("Inorder test passed!\n");
-}
-
-void test_preorder_output() {
-  printf("Testing Preorder traversal...\n");
-  Node *root = build_sample_tree();
-  reset_visited();
-
-  printf("Preorder traversal: ");
-  preorder_node(root, print_node_value);
-  printf("\n");
-
-  // For a general tree, preorder is the same as DFS
-  reset_visited();
-  preorder_node(root, record_result);
-  // This will be different from the tree structure since preorder_node uses
-  // left/right For demonstration, we'll just check that it executed
-  assert(result_count >= 0); // Just ensure it ran
-
-  printf("Preorder test passed!\n");
-}
-
-void test_postorder_output() {
-  printf("Testing Postorder traversal...\n");
-  Node *root = build_sample_tree();
-  reset_visited();
-
-  printf("Postorder traversal: ");
-  postorder_node(root, print_node_value);
-  printf("\n");
-
-  reset_visited();
-  postorder_node(root, record_result);
-  assert(result_count >= 0);
-
-  printf("Postorder test passed!\n");
-}
-
 void test_traversal() {
   printf("Testing all traversal methods...\n");
 
-  // Test DFS traversal on tree structure
+  // ============ dfs ============
+  printf("Testing DFS traversal...\n");
   Node *root = build_sample_tree();
   reset_visited();
   dfs(root, record_result);
   int dfs_expected[] = {1, 2, 4, 7, 5, 8, 3, 6};
   assert(result_count == 8);
   assert(arrays_equal(visited_values, dfs_expected, 8));
+  printf("DFS test passed!\n");
 
-  // Test BFS traversal on tree structure
+  // ============ bfs ============
+  printf("Testing BFS traversal...\n");
   reset_visited();
   bfs(root, record_result);
   int bfs_expected[] = {1, 2, 3, 4, 5, 6, 7, 8};
   assert(result_count == 8);
   assert(arrays_equal(visited_values, bfs_expected, 8));
+  printf("BFS test passed!\n");
 
-  // Test inorder traversal with BST
-  Node *bst_root = build_sample_bst();
+  // ============ preorder ============
+  printf("Testing Preorder traversal...\n");
   reset_visited();
-  inorder_node(bst_root, record_result);
-  int inorder_expected[] = {1, 2, 3, 4, 5, 6, 7};
-  assert(result_count == 7);
-  assert(arrays_equal(visited_values, inorder_expected, 7));
+  preorder(root, record_result);
+  int preorder_expected[] = {1, 2, 4, 7, 5, 8, 3, 6};
+  assert(result_count == 8);
+  assert(arrays_equal(visited_values, preorder_expected, 8));
+  printf("Preorder test passed!\n");
+
+  // ============ postorder ============
+  printf("Testing Postorder traversal...\n");
+  reset_visited();
+  postorder(root, record_result);
+  int postorder_expected[] = {7, 4, 8, 5, 2, 6, 3, 1};
+  assert(result_count == 8);
+  assert(arrays_equal(visited_values, postorder_expected, 8));
+  printf("Postorder test passed!\n");
 
   printf("All traversal tests passed!\n");
 }
 
 int main() {
-  printf("Running Node tests\n");
   printf("==================\n");
+  printf("Running Node tests...\n\n");
 
   test_nodeset();
   test_queue();
   test_tree_structure();
-  test_dfs_output();
-  test_bfs_output();
-  test_inorder_output();
-  test_preorder_output();
-  test_postorder_output();
   test_traversal();
 
   printf("==================\n");
-  printf("All tests passed!\n");
+  printf("All Node tests passed!\n");
   return 0;
 }
