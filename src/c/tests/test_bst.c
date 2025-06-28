@@ -64,13 +64,15 @@ void test_bst_traversals() {
 
 void test_boundary_traversal() {
   printf("Testing boundary traversal...\n");
-  //        1
+
+  /*        1
   //       / \
   //      2   3
   //     / \
   //    4   5
   //   / \   \
   //  6   7   8
+  */
 
   BSTNode *n6 = create_node(6);
   BSTNode *n7 = create_node(7);
@@ -155,11 +157,12 @@ void test_delete_operations() {
   printf("Testing delete operations...\n");
   BST tree = {NULL, 0};
 
-  //        50
+  /*        50
   //       /  \
   //      30   70
   //     / \   / \
   //    20 40 60 80
+  */
 
   bst_insert(&tree, 50);
   bst_insert(&tree, 30);
@@ -273,10 +276,10 @@ void test_single_node_tree() {
     exit(1);
   }
 
-  // ============ boundary_traversal_bst ============
+  // ============ boundary_traversal ============
   BSTNode *boundary_nodes[MAX_NODES];
   int boundary_index = 0;
-  boundary_traversal_bst(tree.root, boundary_nodes, &boundary_index);
+  boundary_traversal(tree.root, boundary_nodes, &boundary_index);
 
   assert(boundary_index == 1);
   assert(boundary_nodes[0]->value == 42);
