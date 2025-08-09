@@ -1,19 +1,7 @@
-# python stuff
-**/__pycache__/
-**/*.egg-info
-*.pyc
-.pytest_cache/
-.ruff_cache/
-venv/
-
-# C stuff
-*.cache
-*.out
+Cargo.lock
 
 # Editor specific stuff
 .vscode
-.zed
-compile_commands.json
 
 # OS specific stuff
 **/.DS_Store
