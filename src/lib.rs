@@ -42,6 +42,9 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
+pub mod tree;
+pub use tree::BST;
+
 #[derive(Debug, Clone, Copy)]
 pub struct FloatId(f64);
 
