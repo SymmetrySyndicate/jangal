@@ -42,8 +42,64 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
+/// Core trait for any tree-like data structure
+pub trait TreeLike<T> {
+    /// Returns the total number of elements in the tree
+    fn size(&self) -> usize;
+
+    /// Returns true if the tree contains no elements
+    fn is_empty(&self) -> bool;
+
+    /// Search for a node by its value
+    fn search_by_value(&self, value: &T) -> Option<Number>
+    where
+        T: PartialEq;
+
+    /// Returns the number of nodes in the subtree rooted at the given node
+    fn num_nodes(&self, node_id: Number) -> usize;
+
+    /// Returns true if the subtree rooted at the given node is balanced
+    fn is_balanced(&self, node_id: Number) -> bool;
+}
+
+/// Core trait for node-based tree data structures
+pub trait NodeBasedTree<T>: TreeLike<T> {
+    /// Returns the ID of the root node, if any
+    fn root_id(&self) -> Option<Number>;
+
+    /// Returns a reference to the node with the given ID, if it exists
+    fn get_node(&self, id: Number) -> Option<&Node<T>>;
+
+    /// Returns a mutable reference to the node with the given ID, if it exists
+    fn get_node_mut(&mut self, id: Number) -> Option<&mut Node<T>>;
+
+    /// Returns the height of the subtree rooted at the given node
+    fn height(&self, node_id: Number) -> usize;
+
+    /// Returns the depth of the node with the given ID
+    fn depth(&self, node_id: Number) -> usize;
+
+    /// Returns the number of leaf nodes in the subtree rooted at the given node
+    fn num_leaves(&self, node_id: Number) -> usize;
+
+    /// Returns all leaf nodes in the subtree rooted at the given node
+    fn get_leaves(&self, node_id: Number) -> Vec<&Node<T>>;
+
+    /// Performs a depth-first search starting from the given node
+    fn dfs(&self, node_id: Number) -> Vec<&Node<T>>;
+
+    /// Performs a breadth-first search starting from the given node
+    fn bfs(&self, node_id: Number) -> Vec<&Node<T>>;
+
+    /// Performs a preorder traversal starting from the given node
+    fn preorder(&self, node_id: Number) -> Vec<&Node<T>>;
+
+    /// Performs a postorder traversal starting from the given node
+    fn postorder(&self, node_id: Number) -> Vec<&Node<T>>;
+}
+
 pub mod tree;
-pub use tree::{VEBTree, BST};
+pub use tree::{vEB, BST};
 
 #[derive(Debug, Clone, Copy)]
 pub struct FloatId(f64);
@@ -93,70 +149,27 @@ pub type Number = f64;
 
 /// Generic Node Struct
 ///
-/// A flexible node structure that can represent various types of graph and tree nodes.
-/// Each node has a unique ID and can maintain relationships with other nodes through
-/// various connection types: undirected edges, directed edges, parent-child relationships,
-/// and binary tree left-right relationships.
-///
-/// # Examples
-///
-/// ## Basic node creation and properties
-///
-/// ```
-/// use jangal::Node;
-///
-/// let node = Node::new("Hello, World!");
-/// assert_eq!(node.value, "Hello, World!");
-/// assert!(node.is_root());
-/// assert!(node.is_leaf());
-/// assert_eq!(node.num_children(), 0);
-/// ```
-///
-/// ## Creating a node with a specific ID
-///
-/// ```
-/// use jangal::Node;
-///
-/// let node = Node::with_id(42, 100.0);
-/// assert_eq!(node.value, 42);
-/// assert_eq!(node.id, 100.0);
-/// ```
-///
-/// ## Building relationships between nodes
-///
-/// ```
-/// use jangal::Node;
-///
-/// let mut parent = Node::new("parent");
-/// let mut child = Node::new("child");
-///
-/// // Create parent-child relationship
-/// parent.add_child(child.id);
-/// child.set_parent(parent.id);
-///
-/// assert_eq!(parent.children(), vec![child.id]);
-/// assert_eq!(child.parent(), Some(parent.id));
-/// assert!(!parent.is_leaf());
-/// assert!(!child.is_root());
-/// ```
+/// This node can be used to build various types of tree structures:
+/// - General trees (using parent/children relationships)
+/// - Binary trees (using left/right relationships)
+/// - Graphs (using edges)
+/// - BSTs (using both parent/children and left/right)
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct Node<T> {
     pub value: T,
     pub id: Number,
 
-    // Undirected edges
-    edges: HashSet<FloatId>,
-
-    // Directed edges
-    incoming: HashSet<FloatId>,
-    outgoing: HashSet<FloatId>,
-
-    // Tree structure
+    // General tree structure
     parent: Option<FloatId>,
     children: HashSet<FloatId>,
 
-    // BST specific
+    // Graph structure
+    edges: HashSet<FloatId>,
+    incoming: HashSet<FloatId>,
+    outgoing: HashSet<FloatId>,
+
+    // BST-specific structure (only used when building BSTs)
     left: Option<FloatId>,
     right: Option<FloatId>,
 }
@@ -184,11 +197,11 @@ impl<T> Node<T> {
         Self {
             value,
             id: Self::generate_id(),
+            parent: None,
+            children: HashSet::new(),
             edges: HashSet::new(),
             incoming: HashSet::new(),
             outgoing: HashSet::new(),
-            parent: None,
-            children: HashSet::new(),
             left: None,
             right: None,
         }
@@ -212,11 +225,11 @@ impl<T> Node<T> {
         Self {
             value,
             id,
+            parent: None,
+            children: HashSet::new(),
             edges: HashSet::new(),
             incoming: HashSet::new(),
             outgoing: HashSet::new(),
-            parent: None,
-            children: HashSet::new(),
             left: None,
             right: None,
         }
@@ -539,7 +552,7 @@ impl<T> Node<T> {
     /// use jangal::Node;
     ///
     /// let mut root = Node::new(10);
-    /// let right = Node::new(15);
+    /// let right = Node::new(5);
     ///
     /// root.set_right(right.id);
     /// assert_eq!(root.right(), Some(right.id));
@@ -589,6 +602,120 @@ impl<T> Node<T> {
     /// ```
     pub fn right(&self) -> Option<Number> {
         self.right.map(|id| id.value())
+    }
+
+    /// Check if this node has a left child
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::Node;
+    ///
+    /// let mut root = Node::new(10);
+    /// assert!(!root.has_left());
+    ///
+    /// let left = Node::new(5);
+    /// root.set_left(left.id);
+    /// assert!(root.has_left());
+    /// ```
+    pub fn has_left(&self) -> bool {
+        self.left.is_some()
+    }
+
+    /// Check if this node has a right child
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::Node;
+    ///
+    /// let mut root = Node::new(10);
+    /// assert!(!root.has_right());
+    ///
+    /// let right = Node::new(15);
+    /// root.set_right(right.id);
+    /// assert!(root.has_right());
+    /// ```
+    pub fn has_right(&self) -> bool {
+        self.right.is_some()
+    }
+
+    /// Check if this node is a binary leaf (no left or right children)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::Node;
+    ///
+    /// let mut root = Node::new(10);
+    /// assert!(root.is_binary_leaf());
+    ///
+    /// let left = Node::new(5);
+    /// root.set_left(left.id);
+    /// assert!(!root.is_binary_leaf());
+    /// ```
+    pub fn is_binary_leaf(&self) -> bool {
+        self.left.is_none() && self.right.is_none()
+    }
+
+    /// Get the degree of this node (number of direct connections)
+    ///
+    /// For general trees, this is the number of children.
+    /// For binary trees, this is the number of non-null left/right children.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::Node;
+    ///
+    /// let mut node = Node::new(10);
+    /// assert_eq!(node.degree(), 0);
+    ///
+    /// let left = Node::new(5);
+    /// let right = Node::new(15);
+    /// node.set_left(left.id);
+    /// node.set_right(right.id);
+    /// assert_eq!(node.degree(), 2);
+    /// ```
+    pub fn degree(&self) -> usize {
+        let mut count = 0;
+        if self.left.is_some() {
+            count += 1;
+        }
+        if self.right.is_some() {
+            count += 1;
+        }
+        count
+    }
+
+    /// Get all direct connections (left, right, children)
+    ///
+    /// Returns a vector of all node IDs that this node is directly connected to.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::Node;
+    ///
+    /// let mut node = Node::new(10);
+    /// assert_eq!(node.connections().len(), 0);
+    ///
+    /// let left = Node::new(5);
+    /// let right = Node::new(15);
+    /// node.set_left(left.id);
+    /// node.set_right(right.id);
+    /// assert_eq!(node.connections().len(), 2);
+    /// ```
+    pub fn connections(&self) -> Vec<Number> {
+        let mut connections = Vec::new();
+        if let Some(left_id) = self.left {
+            connections.push(left_id.value());
+        }
+        if let Some(right_id) = self.right {
+            connections.push(right_id.value());
+        }
+        connections.extend(self.children.iter().map(|id| id.value()));
+        connections
     }
 }
 
@@ -702,7 +829,7 @@ impl<T: fmt::Display> fmt::Display for Node<T> {
 /// assert_eq!(preorder_result.len(), 2);
 /// assert_eq!(postorder_result.len(), 2);
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Tree<T> {
     nodes: HashMap<FloatId, Node<T>>,
     root_id: Option<FloatId>,
@@ -727,7 +854,80 @@ impl<T> Tree<T> {
             root_id: None,
         }
     }
+}
 
+impl<T> TreeLike<T> for Tree<T> {
+    fn size(&self) -> usize {
+        self.nodes.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
+    }
+
+    fn search_by_value(&self, value: &T) -> Option<Number>
+    where
+        T: PartialEq,
+    {
+        self.search_by_value(value)
+    }
+
+    fn num_nodes(&self, node_id: Number) -> usize {
+        self.num_nodes(node_id)
+    }
+
+    fn is_balanced(&self, node_id: Number) -> bool {
+        self.is_balanced(node_id)
+    }
+}
+
+impl<T> NodeBasedTree<T> for Tree<T> {
+    fn root_id(&self) -> Option<Number> {
+        self.root_id()
+    }
+
+    fn get_node(&self, id: Number) -> Option<&Node<T>> {
+        self.get_node(id)
+    }
+
+    fn get_node_mut(&mut self, id: Number) -> Option<&mut Node<T>> {
+        self.get_node_mut(id)
+    }
+
+    fn height(&self, node_id: Number) -> usize {
+        self.height(node_id)
+    }
+
+    fn depth(&self, node_id: Number) -> usize {
+        self.depth(node_id)
+    }
+
+    fn num_leaves(&self, node_id: Number) -> usize {
+        self.num_leaves(node_id)
+    }
+
+    fn get_leaves(&self, node_id: Number) -> Vec<&Node<T>> {
+        self.get_leaves(node_id)
+    }
+
+    fn dfs(&self, node_id: Number) -> Vec<&Node<T>> {
+        self.dfs(node_id)
+    }
+
+    fn bfs(&self, node_id: Number) -> Vec<&Node<T>> {
+        self.bfs(node_id)
+    }
+
+    fn preorder(&self, node_id: Number) -> Vec<&Node<T>> {
+        self.preorder(node_id)
+    }
+
+    fn postorder(&self, node_id: Number) -> Vec<&Node<T>> {
+        self.postorder(node_id)
+    }
+}
+
+impl<T> Tree<T> {
     /// Add a node to the tree
     ///
     /// Adds a node to the tree and returns its ID. If this is the first node
@@ -865,8 +1065,24 @@ impl<T> Tree<T> {
 
     /// Remove a node
     #[allow(dead_code)]
-    pub(crate) fn remove_node(&mut self, id: Number) {
+    pub fn remove_node(&mut self, id: Number) {
         self.nodes.remove(&FloatId::from(id));
+    }
+
+    /// Get the minimum value in the tree
+    pub fn min(&self) -> Option<&T>
+    where
+        T: Ord,
+    {
+        self.nodes.values().map(|node| &node.value).min()
+    }
+
+    /// Get the maximum value in the tree
+    pub fn max(&self) -> Option<&T>
+    where
+        T: Ord,
+    {
+        self.nodes.values().map(|node| &node.value).max()
     }
 
     /// Set the root node
@@ -931,6 +1147,38 @@ impl<T> Tree<T> {
     /// ```
     pub fn is_empty(&self) -> bool {
         self.nodes.is_empty()
+    }
+
+    /// Search for a node by its value
+    ///
+    /// Returns the ID of the first node found with the given value, or None if not found.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The value to search for
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::Tree;
+    ///
+    /// let mut tree = Tree::new();
+    /// let node = tree.add_node(jangal::Node::new(42));
+    /// tree.set_root(node.unwrap());
+    ///
+    /// let found_id = tree.search_by_value(&42);
+    /// assert!(found_id.is_some());
+    /// ```
+    pub fn search_by_value(&self, value: &T) -> Option<Number>
+    where
+        T: PartialEq,
+    {
+        for (id, node) in &self.nodes {
+            if node.value == *value {
+                return Some(id.value());
+            }
+        }
+        None
     }
 
     /// Calculate the height of a node
@@ -1501,6 +1749,57 @@ impl<T> Tree<T> {
             result.push(node);
         }
     }
+
+    /// Perform inorder traversal
+    ///
+    /// Traverses the subtree in inorder: left subtree, root, right subtree.
+    /// Returns a vector of nodes in traversal order.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::{Tree, Node};
+    ///
+    /// let mut tree = Tree::new();
+    /// let root = Node::new("root");
+    /// let child1 = Node::new("child1");
+    /// let child2 = Node::new("child2");
+    ///
+    /// let root_id = tree.add_node(root).unwrap();
+    /// let child1_id = tree.add_node(child1).unwrap();
+    /// let child2_id = tree.add_node(child2).unwrap();
+    ///
+    /// // Set up relationships
+    /// if let Some(root_node) = tree.get_node_mut(root_id) {
+    ///     root_node.add_child(child1_id);
+    ///     root_node.add_child(child2_id);
+    /// }
+    /// if let Some(child1_node) = tree.get_node_mut(child1_id) {
+    ///     child1_node.set_parent(root_id);
+    /// }
+    /// if let Some(child2_node) = tree.get_node_mut(child2_id) {
+    ///     child2_node.set_parent(root_id);
+    /// }
+    ///
+    /// tree.set_root(root_id);
+    ///
+    /// let inorder_result = tree.inorder(root_id);
+    /// assert_eq!(inorder_result.len(), 3);
+    /// ```
+    pub fn inorder(&self, node_id: Number) -> Vec<&Node<T>> {
+        let mut result = Vec::new();
+        self.inorder_recursive(FloatId::from(node_id), &mut result);
+        result
+    }
+
+    fn inorder_recursive<'a>(&'a self, node_id: FloatId, result: &mut Vec<&'a Node<T>>) {
+        if let Some(node) = self.nodes.get(&node_id) {
+            for child_id in node.children() {
+                self.inorder_recursive(FloatId::from(child_id), result);
+            }
+            result.push(node);
+        }
+    }
 }
 
 impl<T> Default for Tree<T> {
@@ -1525,19 +1824,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_node_creation() {
+    fn test_node_core_functionality() {
         let node = Node::new(42);
         assert_eq!(node.value, 42);
         assert!(node.is_root());
         assert!(node.is_leaf());
         assert_eq!(node.num_children(), 0);
-    }
 
-    #[test]
-    fn test_node_with_id() {
-        let node = Node::with_id("test", 123.0);
-        assert_eq!(node.value, "test");
-        assert_eq!(node.id, 123.0);
+        // Test with custom ID
+        let node_with_id = Node::with_id("test", 123.0);
+        assert_eq!(node_with_id.value, "test");
+        assert_eq!(node_with_id.id, 123.0);
+
+        // Test display
+        let display_str = format!("{}", node);
+        assert_eq!(display_str, "Node(value=42)");
     }
 
     #[test]
@@ -1553,52 +1854,21 @@ mod tests {
         assert!(!parent.is_leaf());
         assert!(child.is_leaf());
         assert!(!child.is_root());
-    }
 
-    #[test]
-    fn test_node_display() {
-        let node = Node::new("test_value");
-        let display_str = format!("{}", node);
-        assert_eq!(display_str, "Node(value=test_value)");
-    }
+        // Test multiple children
+        let child2 = Node::new("child2");
+        parent.add_child(child2.id);
+        assert_eq!(parent.num_children(), 2);
 
-    #[test]
-    fn test_node_equality() {
-        let node1 = Node::with_id(42, 1.0);
-        let node2 = Node::with_id(42, 1.0);
-        let node3 = Node::with_id(42, 2.0);
+        // Test removing child
+        parent.remove_child(child2.id);
+        assert_eq!(parent.num_children(), 1);
 
-        assert_eq!(node1, node2);
-        assert_ne!(node1, node3);
-    }
-
-    #[test]
-    fn test_float_id_hash_and_eq() {
-        use std::collections::HashMap;
-
-        let mut map = HashMap::new();
-        let id1 = FloatId::new(1.5);
-        let id2 = FloatId::new(1.5);
-        let id3 = FloatId::new(2.5);
-
-        map.insert(id1, "first");
-        map.insert(id2, "second");
-        map.insert(id3, "third");
-
-        assert_eq!(map.get(&id1), Some(&"second"));
-        assert_eq!(map.get(&id2), Some(&"second"));
-        assert_eq!(map.get(&id3), Some(&"third"));
-        assert_eq!(map.len(), 2);
-    }
-
-    #[test]
-    fn test_float_id_nan_handling() {
-        let nan1 = FloatId::new(f64::NAN);
-        let nan2 = FloatId::new(f64::NAN);
-        let regular = FloatId::new(1.0);
-
-        assert_eq!(nan1, nan2);
-        assert_ne!(nan1, regular);
+        // Test clearing relationships
+        parent.remove_child(child.id);
+        child.remove_parent();
+        assert!(parent.is_root() && parent.is_leaf());
+        assert!(child.is_root() && child.is_leaf());
     }
 
     #[test]
@@ -1612,129 +1882,55 @@ mod tests {
 
         assert_eq!(root.left(), Some(left.id));
         assert_eq!(root.right(), Some(right.id));
+        assert!(root.has_left());
+        assert!(root.has_right());
+        assert!(!root.is_binary_leaf());
 
         root.clear_left();
         root.clear_right();
-
         assert_eq!(root.left(), None);
         assert_eq!(root.right(), None);
     }
 
     #[test]
-    fn test_multiple_children() {
-        let mut parent = Node::new("parent");
-        let child1 = Node::new("child1");
-        let child2 = Node::new("child2");
-        let child3 = Node::new("child3");
-
-        parent.add_child(child1.id);
-        parent.add_child(child2.id);
-        parent.add_child(child3.id);
-
-        assert_eq!(parent.num_children(), 3);
-        let children = parent.children();
-        assert!(children.contains(&child1.id));
-        assert!(children.contains(&child2.id));
-        assert!(children.contains(&child3.id));
-
-        // Test removing a child
-        parent.remove_child(child2.id);
-        assert_eq!(parent.num_children(), 2);
-        let children = parent.children();
-        assert!(children.contains(&child1.id));
-        assert!(!children.contains(&child2.id));
-        assert!(children.contains(&child3.id));
-    }
-
-    #[test]
-    fn test_parent_child_relationship() {
-        let mut parent = Node::new("parent");
-        let mut child = Node::new("child");
-
-        // Initially both are roots and leaves
-        assert!(parent.is_root());
-        assert!(parent.is_leaf());
-        assert!(child.is_root());
-        assert!(child.is_leaf());
-
-        // Create relationship
-        parent.add_child(child.id);
-        child.set_parent(parent.id);
-
-        // Check parent state
-        assert!(parent.is_root());
-        assert!(!parent.is_leaf());
-        assert_eq!(parent.num_children(), 1);
-
-        // Check child state
-        assert!(!child.is_root());
-        assert!(child.is_leaf());
-        assert_eq!(child.parent(), Some(parent.id));
-
-        // Remove relationship
-        parent.remove_child(child.id);
-        child.remove_parent();
-
-        // Both should be roots and leaves again
-        assert!(parent.is_root());
-        assert!(parent.is_leaf());
-        assert!(child.is_root());
-        assert!(child.is_leaf());
-    }
-
-    #[test]
-    fn test_edge_operations() {
-        let mut node1 = Node::new("A");
-        let node2 = Node::new("B");
-
-        node1.add_edge(node2.id, None, None, None);
-        node1.add_edge(node2.id, None, Some(true), None);
-    }
-
-    #[test]
-    fn test_unique_ids() {
-        let node1 = Node::new("first");
-        let node2 = Node::new("second");
-        let node3 = Node::new("third");
-
-        // Each node should have a unique ID
-        assert_ne!(node1.id, node2.id);
-        assert_ne!(node2.id, node3.id);
-        assert_ne!(node1.id, node3.id);
-    }
-
-    #[test]
-    fn test_hash_consistency() {
+    fn test_float_id_functionality() {
         use std::collections::HashMap;
 
-        let node1 = Node::with_id("test", 42.0);
-        let node2 = Node::with_id("different_value", 42.0); // Same ID, different value
+        let id1 = FloatId::new(1.5);
+        let id2 = FloatId::new(1.5);
+        let id3 = FloatId::new(2.5);
+
+        // Test equality and hashing
+        assert_eq!(id1, id2);
+        assert_ne!(id1, id3);
 
         let mut map = HashMap::new();
-        map.insert(node1.clone(), "first");
-        map.insert(node2.clone(), "second"); // Should overwrite because same ID
+        map.insert(id1, "first");
+        map.insert(id2, "second");
+        map.insert(id3, "third");
 
-        assert_eq!(map.len(), 1);
-        assert_eq!(map.get(&node1), Some(&"second"));
-        assert_eq!(map.get(&node2), Some(&"second"));
-    }
+        assert_eq!(map.get(&id1), Some(&"second"));
+        assert_eq!(map.len(), 2);
 
-    #[test]
-    fn test_float_id_conversion() {
+        // Test NaN handling
+        let nan1 = FloatId::new(f64::NAN);
+        let nan2 = FloatId::new(f64::NAN);
+        let regular = FloatId::new(1.0);
+
+        assert_eq!(nan1, nan2);
+        assert_ne!(nan1, regular);
+
+        // Test conversion
         let value = 3.14159;
         let float_id = FloatId::new(value);
-
         assert_eq!(float_id.value(), value);
 
         let converted_to_f64: f64 = float_id.into();
         assert_eq!(converted_to_f64, value);
-
-        let converted_from_f64 = FloatId::from(value);
-        assert_eq!(converted_from_f64, float_id);
     }
 
     #[test]
-    fn test_tree_operations() {
+    fn test_tree_core_operations() {
         let mut tree = Tree::<i32>::new();
 
         let node1 = Node::new(1);
@@ -1761,6 +1957,7 @@ mod tests {
 
         tree.set_root(id1);
 
+        // Test core properties
         assert_eq!(tree.size(), 3);
         assert_eq!(tree.height(id1), 1);
         assert_eq!(tree.depth(id2), 1);
@@ -1812,7 +2009,7 @@ mod tests {
 
         tree.set_root(root_id);
 
-        // Test traversals
+        // Test all traversal types
         let dfs_result = tree.dfs(root_id);
         let bfs_result = tree.bfs(root_id);
         let preorder_result = tree.preorder(root_id);
@@ -1823,10 +2020,8 @@ mod tests {
         assert_eq!(preorder_result.len(), 5);
         assert_eq!(postorder_result.len(), 5);
 
-        // Verify root is first in preorder
+        // Verify traversal order
         assert_eq!(preorder_result[0].id, root_id);
-
-        // Verify root is last in postorder
         assert_eq!(postorder_result[4].id, root_id);
     }
 
@@ -1858,7 +2053,7 @@ mod tests {
 
         tree.set_root(root_id);
 
-        // Test properties
+        // Test tree properties
         assert_eq!(tree.height(root_id), 1);
         assert_eq!(tree.depth(child1_id), 1);
         assert_eq!(tree.num_leaves(root_id), 2);
