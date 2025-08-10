@@ -1,6 +1,6 @@
 repos:
     - repo: https://github.com/pre-commit/pre-commit-hooks
-      rev: v5.0.0
+      rev: v6.0.0
       hooks:
           - id: end-of-file-fixer
           - id: trailing-whitespace
@@ -11,3 +11,5 @@ repos:
       rev: v1.0
       hooks:
           - id: fmt
+          - id: clippy
+          - id: cargo-check
