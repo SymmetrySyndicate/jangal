@@ -541,6 +541,525 @@ impl<T: Ord + Clone> Default for BST<T> {
     }
 }
 
+/// An improved van Emde Boas tree implementation
+///
+/// This implementation provides O(log log U) time complexity for insert, delete,
+/// search, and predecessor/successor operations, where U is the universe size.
+/// It's optimized for integer keys and provides better memory efficiency.
+///
+/// # Examples
+///
+/// ```
+/// use jangal::VEBTree;
+///
+/// let mut veb = VEBTree::new(1000);
+/// veb.insert(5);
+/// veb.insert(10);
+/// veb.insert(15);
+///
+/// assert!(veb.contains(5));
+/// assert_eq!(veb.successor(7), Some(10));
+/// assert_eq!(veb.predecessor(12), Some(10));
+/// ```
+#[derive(Debug, Clone)]
+pub struct VEBTree {
+    /// The universe size (maximum value + 1)
+    universe_size: usize,
+    /// Minimum value in the tree
+    min: Option<usize>,
+    /// Maximum value in the tree
+    max: Option<usize>,
+    /// Summary structure for tracking non-empty clusters
+    summary: Option<Box<VEBTree>>,
+    /// Clusters for storing actual values
+    clusters: Vec<Option<Box<VEBTree>>>,
+    /// Number of elements currently in the tree
+    size: usize,
+}
+
+impl VEBTree {
+    /// Creates a new VEB tree with the specified universe size
+    ///
+    /// # Arguments
+    /// * `universe_size` - The maximum value the tree can store (exclusive)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::VEBTree;
+    /// let veb = VEBTree::new(1000);
+    /// assert_eq!(veb.size(), 0);
+    /// ```
+    pub fn new(universe_size: usize) -> Self {
+        if universe_size <= 2 {
+            Self {
+                universe_size,
+                min: None,
+                max: None,
+                summary: None,
+                clusters: Vec::new(),
+                size: 0,
+            }
+        } else {
+            let cluster_size = (universe_size as f64).sqrt().ceil() as usize;
+            let num_clusters = universe_size.div_ceil(cluster_size);
+
+            Self {
+                universe_size,
+                min: None,
+                max: None,
+                summary: Some(Box::new(VEBTree::new(num_clusters))),
+                clusters: vec![None; num_clusters],
+                size: 0,
+            }
+        }
+    }
+
+    /// Returns the number of elements in the tree
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::VEBTree;
+    /// let mut veb = VEBTree::new(100);
+    /// assert_eq!(veb.size(), 0);
+    /// veb.insert(5);
+    /// assert_eq!(veb.size(), 1);
+    /// ```
+    pub fn size(&self) -> usize {
+        self.size
+    }
+
+    /// Checks if the tree is empty
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::VEBTree;
+    /// let mut veb = VEBTree::new(100);
+    /// assert!(veb.is_empty());
+    /// veb.insert(5);
+    /// assert!(!veb.is_empty());
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.size == 0
+    }
+
+    /// Returns the minimum value in the tree
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::VEBTree;
+    /// let mut veb = VEBTree::new(100);
+    /// assert_eq!(veb.minimum(), None);
+    /// veb.insert(5);
+    /// veb.insert(3);
+    /// assert_eq!(veb.minimum(), Some(3));
+    /// ```
+    pub fn minimum(&self) -> Option<usize> {
+        self.min
+    }
+
+    /// Returns the maximum value in the tree
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::VEBTree;
+    /// let mut veb = VEBTree::new(100);
+    /// assert_eq!(veb.maximum(), None);
+    /// veb.insert(5);
+    /// veb.insert(3);
+    /// assert_eq!(veb.maximum(), Some(5));
+    /// ```
+    pub fn maximum(&self) -> Option<usize> {
+        self.max
+    }
+
+    /// Checks if a value exists in the tree
+    ///
+    /// # Arguments
+    /// * `value` - The value to check
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::VEBTree;
+    /// let mut veb = VEBTree::new(100);
+    /// assert!(!veb.contains(5));
+    /// veb.insert(5);
+    /// assert!(veb.contains(5));
+    /// ```
+    pub fn contains(&self, value: usize) -> bool {
+        if self.universe_size <= 2 {
+            self.min == Some(value) || self.max == Some(value)
+        } else if let (Some(min_val), Some(max_val)) = (self.min, self.max) {
+            if value == min_val || value == max_val {
+                return true;
+            }
+            if value < min_val || value > max_val {
+                return false;
+            }
+            let (cluster, offset) = self.split_value(value);
+            if let Some(cluster_tree) = &self.clusters[cluster] {
+                cluster_tree.contains(offset)
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
+    /// Inserts a value into the tree
+    ///
+    /// # Arguments
+    /// * `value` - The value to insert
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::VEBTree;
+    /// let mut veb = VEBTree::new(100);
+    /// veb.insert(5);
+    /// assert!(veb.contains(5));
+    /// assert_eq!(veb.size(), 1);
+    /// ```
+    pub fn insert(&mut self, value: usize) {
+        if self.universe_size <= 2 {
+            self.insert_simple(value);
+        } else {
+            self.insert_recursive(value);
+        }
+    }
+
+    /// Deletes a value from the tree
+    ///
+    /// # Arguments
+    /// * `value` - The value to delete
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::VEBTree;
+    /// let mut veb = VEBTree::new(100);
+    /// veb.insert(5);
+    /// assert!(veb.contains(5));
+    /// veb.delete(5);
+    /// assert!(!veb.contains(5));
+    /// ```
+    pub fn delete(&mut self, value: usize) {
+        if self.universe_size <= 2 {
+            self.delete_simple(value);
+        } else {
+            self.delete_recursive(value);
+        }
+    }
+
+    /// Finds the successor of a given value
+    ///
+    /// # Arguments
+    /// * `value` - The value to find the successor of
+    ///
+    /// # Returns
+    /// The smallest value in the tree greater than `value`, or `None` if no such value exists
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::VEBTree;
+    /// let mut veb = VEBTree::new(100);
+    /// veb.insert(5);
+    /// veb.insert(10);
+    /// assert_eq!(veb.successor(7), Some(10));
+    /// ```
+    pub fn successor(&self, value: usize) -> Option<usize> {
+        if self.universe_size <= 2 {
+            self.successor_simple(value)
+        } else {
+            self.successor_recursive(value)
+        }
+    }
+
+    /// Finds the predecessor of a given value
+    ///
+    /// # Arguments
+    /// * `value` - The value to find the predecessor of
+    ///
+    /// # Returns
+    /// The largest value in the tree less than `value`, or `None` if no such value exists
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::VEBTree;
+    /// let mut veb = VEBTree::new(100);
+    /// veb.insert(5);
+    /// veb.insert(10);
+    /// assert_eq!(veb.predecessor(7), Some(5));
+    /// ```
+    pub fn predecessor(&self, value: usize) -> Option<usize> {
+        if self.universe_size <= 2 {
+            self.predecessor_simple(value)
+        } else {
+            self.predecessor_recursive(value)
+        }
+    }
+
+    // Helper methods for base case (universe_size <= 2)
+    fn insert_simple(&mut self, value: usize) {
+        if self.min.is_none() {
+            self.min = Some(value);
+            self.max = Some(value);
+            self.size = 1;
+        } else if value != self.min.unwrap() && value != self.max.unwrap() {
+            if value < self.min.unwrap() {
+                self.min = Some(value);
+            } else {
+                self.max = Some(value);
+            }
+            self.size += 1;
+        }
+    }
+
+    fn delete_simple(&mut self, value: usize) {
+        if let Some(min_val) = self.min {
+            if let Some(max_val) = self.max {
+                if min_val == max_val {
+                    if value == min_val {
+                        self.min = None;
+                        self.max = None;
+                        self.size = 0;
+                    }
+                } else if value == min_val {
+                    self.min = Some(max_val);
+                    self.size -= 1;
+                } else if value == max_val {
+                    self.max = Some(min_val);
+                    self.size -= 1;
+                }
+            }
+        }
+    }
+
+    fn successor_simple(&self, value: usize) -> Option<usize> {
+        if let Some(min_val) = self.min {
+            if value < min_val {
+                return Some(min_val);
+            }
+        }
+        if let Some(max_val) = self.max {
+            if value < max_val && value != max_val {
+                return Some(max_val);
+            }
+        }
+        None
+    }
+
+    fn predecessor_simple(&self, value: usize) -> Option<usize> {
+        if let Some(max_val) = self.max {
+            if value > max_val {
+                return Some(max_val);
+            }
+        }
+        if let Some(min_val) = self.min {
+            if value > min_val && value != min_val {
+                return Some(min_val);
+            }
+        }
+        None
+    }
+
+    // Helper methods for recursive case (universe_size > 2)
+    fn insert_recursive(&mut self, value: usize) {
+        if self.min.is_none() {
+            self.min = Some(value);
+            self.max = Some(value);
+            self.size = 1;
+            return;
+        }
+
+        if value < self.min.unwrap() {
+            // Store the old minimum to insert it into clusters
+            let old_min = self.min.unwrap();
+            self.min = Some(value);
+
+            // Insert the old minimum into clusters
+            let (cluster, offset) = self.split_value(old_min);
+            self.ensure_cluster(cluster);
+            self.clusters[cluster].as_mut().unwrap().insert(offset);
+            self.summary.as_mut().unwrap().insert(cluster);
+            self.size += 1;
+            return;
+        }
+
+        if value > self.max.unwrap() {
+            self.max = Some(value);
+        }
+
+        if value != self.min.unwrap() {
+            let (cluster, offset) = self.split_value(value);
+            self.ensure_cluster(cluster);
+            self.clusters[cluster].as_mut().unwrap().insert(offset);
+            self.summary.as_mut().unwrap().insert(cluster);
+            self.size += 1;
+        }
+    }
+
+    fn delete_recursive(&mut self, value: usize) {
+        if self.min.is_none() {
+            return;
+        }
+
+        if self.min == self.max {
+            if value == self.min.unwrap() {
+                self.min = None;
+                self.max = None;
+                self.size = 0;
+            }
+            return;
+        }
+
+        if value == self.min.unwrap() {
+            let first_cluster = self.summary.as_ref().unwrap().minimum().unwrap();
+            let offset = self.clusters[first_cluster]
+                .as_ref()
+                .unwrap()
+                .minimum()
+                .unwrap();
+            let new_min = self.join_value(first_cluster, offset);
+            self.min = Some(new_min);
+
+            let (cluster, _) = self.split_value(new_min);
+            self.clusters[cluster].as_mut().unwrap().delete(offset);
+            if self.clusters[cluster].as_ref().unwrap().is_empty() {
+                self.summary.as_mut().unwrap().delete(cluster);
+            }
+            self.size -= 1;
+        } else if value == self.max.unwrap() {
+            let last_cluster = self.summary.as_ref().unwrap().maximum().unwrap();
+            let offset = self.clusters[last_cluster]
+                .as_ref()
+                .unwrap()
+                .maximum()
+                .unwrap();
+            let new_max = self.join_value(last_cluster, offset);
+            self.max = Some(new_max);
+
+            let (cluster, _) = self.split_value(new_max);
+            self.clusters[cluster].as_mut().unwrap().delete(offset);
+            if self.clusters[cluster].as_ref().unwrap().is_empty() {
+                self.summary.as_mut().unwrap().delete(cluster);
+            }
+            self.size -= 1;
+        } else {
+            let (cluster, offset) = self.split_value(value);
+            if let Some(cluster_tree) = &mut self.clusters[cluster] {
+                cluster_tree.delete(offset);
+                if cluster_tree.is_empty() {
+                    self.summary.as_mut().unwrap().delete(cluster);
+                }
+                self.size -= 1;
+            }
+        }
+    }
+
+    fn successor_recursive(&self, value: usize) -> Option<usize> {
+        self.min?;
+
+        if value < self.min.unwrap() {
+            return self.min;
+        }
+
+        if value >= self.max.unwrap() {
+            return None;
+        }
+
+        let (cluster, offset) = self.split_value(value);
+        let cluster_tree = &self.clusters[cluster];
+
+        if let Some(tree) = cluster_tree {
+            if offset < tree.maximum().unwrap() {
+                let succ_offset = tree.successor(offset).unwrap();
+                return Some(self.join_value(cluster, succ_offset));
+            }
+        }
+
+        let next_cluster = self.summary.as_ref().unwrap().successor(cluster)?;
+        let succ_offset = self.clusters[next_cluster]
+            .as_ref()
+            .unwrap()
+            .minimum()
+            .unwrap();
+        Some(self.join_value(next_cluster, succ_offset))
+    }
+
+    fn predecessor_recursive(&self, value: usize) -> Option<usize> {
+        self.min?;
+
+        if value > self.max.unwrap() {
+            return self.max;
+        }
+
+        if value <= self.min.unwrap() {
+            return None;
+        }
+
+        let (cluster, offset) = self.split_value(value);
+        let cluster_tree = &self.clusters[cluster];
+
+        // First, try to find a predecessor within the current cluster
+        if let Some(tree) = cluster_tree {
+            if offset > tree.minimum().unwrap() {
+                let pred_offset = tree.predecessor(offset).unwrap();
+                return Some(self.join_value(cluster, pred_offset));
+            }
+        }
+
+        // If no predecessor in current cluster, look in previous clusters
+        if let Some(prev_cluster) = self.summary.as_ref().unwrap().predecessor(cluster) {
+            if let Some(prev_tree) = &self.clusters[prev_cluster] {
+                let pred_offset = prev_tree.maximum().unwrap();
+                return Some(self.join_value(prev_cluster, pred_offset));
+            }
+        }
+
+        // If no previous cluster, the predecessor might be the minimum
+        if value > self.min.unwrap() {
+            return self.min;
+        }
+
+        None
+    }
+
+    // Utility methods
+    fn split_value(&self, value: usize) -> (usize, usize) {
+        let cluster_size = (self.universe_size as f64).sqrt().ceil() as usize;
+        let cluster = value / cluster_size;
+        let offset = value % cluster_size;
+        (cluster, offset)
+    }
+
+    fn join_value(&self, cluster: usize, offset: usize) -> usize {
+        let cluster_size = (self.universe_size as f64).sqrt().ceil() as usize;
+        cluster * cluster_size + offset
+    }
+
+    fn ensure_cluster(&mut self, cluster: usize) {
+        if self.clusters[cluster].is_none() {
+            let cluster_size = (self.universe_size as f64).sqrt().ceil() as usize;
+            self.clusters[cluster] = Some(Box::new(VEBTree::new(cluster_size)));
+        }
+    }
+}
+
+impl Default for VEBTree {
+    fn default() -> Self {
+        Self::new(16)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -838,5 +1357,256 @@ mod tests {
         let bst: BST<i32> = BST::default();
         assert!(bst.is_empty());
         assert_eq!(bst.size(), 0);
+    }
+
+    // VEB Tree Tests
+    #[test]
+    fn test_veb_tree_creation() {
+        let veb: VEBTree = VEBTree::new(16);
+        assert_eq!(veb.minimum(), None);
+        assert_eq!(veb.maximum(), None);
+    }
+
+    #[test]
+    fn test_veb_tree_small_capacity() {
+        let veb: VEBTree = VEBTree::new(2);
+        assert_eq!(veb.minimum(), None);
+        assert_eq!(veb.maximum(), None);
+    }
+
+    #[test]
+    fn test_veb_tree_single_insert() {
+        let mut veb: VEBTree = VEBTree::new(16);
+        veb.insert(5);
+
+        assert_eq!(veb.minimum(), Some(5));
+        assert_eq!(veb.maximum(), Some(5));
+        assert!(veb.contains(5));
+        assert!(!veb.contains(3));
+        assert!(!veb.contains(7));
+    }
+
+    #[test]
+    fn test_veb_tree_multiple_inserts() {
+        let mut veb: VEBTree = VEBTree::new(16);
+        veb.insert(5);
+        veb.insert(3);
+        veb.insert(7);
+
+        assert_eq!(veb.minimum(), Some(3));
+        assert_eq!(veb.maximum(), Some(7));
+        assert!(veb.contains(3));
+        assert!(veb.contains(5));
+        assert!(veb.contains(7));
+        assert!(!veb.contains(4));
+        assert!(!veb.contains(6));
+    }
+
+    #[test]
+    fn test_veb_tree_duplicate_insert() {
+        let mut veb: VEBTree = VEBTree::new(16);
+        veb.insert(5);
+        veb.insert(5); // Duplicate
+
+        assert_eq!(veb.minimum(), Some(5));
+        assert_eq!(veb.maximum(), Some(5));
+        assert_eq!(veb.contains(5), true);
+    }
+
+    #[test]
+    fn test_veb_tree_search() {
+        let mut veb: VEBTree = VEBTree::new(16);
+        veb.insert(5);
+        veb.insert(3);
+        veb.insert(7);
+
+        assert!(veb.contains(3));
+        assert!(veb.contains(5));
+        assert!(veb.contains(7));
+        assert!(!veb.contains(4));
+        assert!(!veb.contains(6));
+    }
+
+    #[test]
+    fn test_veb_tree_delete() {
+        let mut veb: VEBTree = VEBTree::new(16);
+        veb.insert(5);
+        veb.insert(3);
+        veb.insert(7);
+
+        // Delete middle element
+        veb.delete(5);
+        assert_eq!(veb.minimum(), Some(3));
+        assert_eq!(veb.maximum(), Some(7));
+        assert!(!veb.contains(5));
+        assert!(veb.contains(3));
+        assert!(veb.contains(7));
+
+        // Delete minimum
+        veb.delete(3);
+        assert_eq!(veb.minimum(), Some(7));
+        assert_eq!(veb.maximum(), Some(7));
+        assert!(!veb.contains(3));
+
+        // Delete maximum
+        veb.delete(7);
+        assert_eq!(veb.minimum(), None);
+        assert_eq!(veb.maximum(), None);
+        assert!(!veb.contains(7));
+    }
+
+    #[test]
+    fn test_veb_tree_findnext() {
+        let mut veb: VEBTree = VEBTree::new(16);
+        veb.insert(3);
+        veb.insert(5);
+        veb.insert(7);
+        veb.insert(9);
+
+        assert_eq!(veb.successor(2), Some(3));
+        assert_eq!(veb.successor(3), Some(5));
+        assert_eq!(veb.successor(5), Some(7));
+        assert_eq!(veb.successor(7), Some(9));
+        assert_eq!(veb.successor(9), None);
+        assert_eq!(veb.successor(10), None);
+    }
+
+    #[test]
+    fn test_veb_tree_findprev() {
+        let mut veb: VEBTree = VEBTree::new(16);
+        veb.insert(3);
+        veb.insert(5);
+        veb.insert(7);
+        veb.insert(9);
+
+        assert_eq!(veb.predecessor(4), Some(3));
+        assert_eq!(veb.predecessor(5), Some(3));
+        assert_eq!(veb.predecessor(7), Some(5));
+        assert_eq!(veb.predecessor(9), Some(7));
+        assert_eq!(veb.predecessor(10), Some(9));
+        assert_eq!(veb.predecessor(2), None);
+    }
+
+    #[test]
+    fn test_veb_tree_large_capacity() {
+        let mut veb: VEBTree = VEBTree::new(1000);
+
+        // Insert values across the range
+        veb.insert(25);
+        veb.insert(50);
+        veb.insert(75);
+
+        assert_eq!(veb.minimum(), Some(25));
+        assert_eq!(veb.maximum(), Some(75));
+        assert!(veb.contains(25));
+        assert!(veb.contains(50));
+        assert!(veb.contains(75));
+
+        // Test successor and predecessor
+        assert_eq!(veb.successor(25), Some(50));
+        assert_eq!(veb.successor(50), Some(75));
+        assert_eq!(veb.predecessor(75), Some(50));
+        assert_eq!(veb.predecessor(50), Some(25));
+    }
+
+    #[test]
+    fn test_veb_tree_edge_cases() {
+        let mut veb: VEBTree = VEBTree::new(16);
+
+        // Test with empty tree
+        assert_eq!(veb.minimum(), None);
+        assert_eq!(veb.maximum(), None);
+        assert_eq!(veb.successor(5), None);
+        assert_eq!(veb.predecessor(5), None);
+
+        // Test with single element
+        veb.insert(10);
+        assert_eq!(veb.minimum(), Some(10));
+        assert_eq!(veb.maximum(), Some(10));
+        assert_eq!(veb.successor(10), None);
+        assert_eq!(veb.predecessor(10), None);
+
+        // Test with two elements
+        veb.insert(5);
+        assert_eq!(veb.minimum(), Some(5));
+        assert_eq!(veb.maximum(), Some(10));
+        assert_eq!(veb.successor(5), Some(10));
+        assert_eq!(veb.predecessor(10), Some(5));
+    }
+
+    #[test]
+    fn test_veb_tree_sequential_operations() {
+        let mut veb: VEBTree = VEBTree::new(32);
+
+        // Insert sequence
+        for i in 0..10 {
+            veb.insert(i);
+        }
+
+        // Verify all elements are present
+        for i in 0..10 {
+            assert!(veb.contains(i));
+        }
+
+        // Verify min/max
+        assert_eq!(veb.minimum(), Some(0));
+        assert_eq!(veb.maximum(), Some(9));
+
+        // Verify successor chain
+        let mut current = veb.minimum().unwrap();
+        for expected in 1..10 {
+            current = veb.successor(current).unwrap();
+            assert_eq!(current, expected);
+        }
+        assert_eq!(veb.successor(current), None);
+
+        // Verify predecessor chain
+        let mut current = veb.maximum().unwrap();
+        for expected in (0..9).rev() {
+            current = veb.predecessor(current).unwrap();
+            assert_eq!(current, expected);
+        }
+        assert_eq!(veb.predecessor(current), None);
+    }
+
+    #[test]
+    fn test_veb_tree_delete_and_reinsert() {
+        let mut veb: VEBTree = VEBTree::new(16);
+
+        // Insert elements
+        veb.insert(3);
+        veb.insert(5);
+        veb.insert(7);
+
+        // Delete and verify
+        veb.delete(5);
+        assert!(!veb.contains(5));
+        assert_eq!(veb.minimum(), Some(3));
+        assert_eq!(veb.maximum(), Some(7));
+
+        // Reinsert and verify
+        veb.insert(5);
+        assert!(veb.contains(5));
+        assert_eq!(veb.minimum(), Some(3));
+        assert_eq!(veb.maximum(), Some(7));
+
+        // Verify successor/predecessor chains are restored
+        assert_eq!(veb.successor(3), Some(5));
+        assert_eq!(veb.successor(5), Some(7));
+        assert_eq!(veb.predecessor(7), Some(5));
+        assert_eq!(veb.predecessor(5), Some(3));
+    }
+
+    #[test]
+    fn test_veb_tree_empty_operations() {
+        let veb: VEBTree = VEBTree::new(16);
+
+        // All operations on empty tree should return None/false
+        assert_eq!(veb.minimum(), None);
+        assert_eq!(veb.maximum(), None);
+        assert!(!veb.contains(5));
+        assert!(!veb.contains(5));
+        assert_eq!(veb.successor(5), None);
+        assert_eq!(veb.predecessor(5), None);
     }
 }

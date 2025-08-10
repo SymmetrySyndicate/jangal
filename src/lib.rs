@@ -43,7 +43,7 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 
 pub mod tree;
-pub use tree::BST;
+pub use tree::{VEBTree, BST};
 
 #[derive(Debug, Clone, Copy)]
 pub struct FloatId(f64);
