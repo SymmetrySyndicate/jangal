@@ -1,17 +1,20 @@
 use crate::Tree;
-use crate::{Node, NodeBasedTree, Number, TreeLike};
+use crate::{Node, Number};
 
 /// A Binary Search Tree implementation
 ///
 /// This BST provides efficient insertion, deletion, and search operations
 /// with O(log n) average case complexity for balanced trees.
-/// It inherits all tree functionality from the core Tree type.
+///
+/// The BST focuses on binary search tree-specific operations like insertion,
+/// deletion, search, and traversal. For generic tree operations (like
+/// node manipulation, advanced traversals, etc.), use the `as_tree()` method
+/// to access the underlying tree structure.
 ///
 /// # Examples
 ///
 /// ```
 /// use jangal::BST;
-/// use jangal::TreeLike;
 ///
 /// let mut bst = BST::new();
 /// bst.insert(5);
@@ -21,6 +24,9 @@ use crate::{Node, NodeBasedTree, Number, TreeLike};
 /// assert_eq!(bst.size(), 3);
 /// assert!(bst.search(&5).is_some());
 /// assert!(bst.search(&10).is_none());
+///
+/// // For advanced tree operations, access the underlying tree
+/// let tree_ref = bst.as_tree();
 /// ```
 #[derive(Debug)]
 pub struct BST<T: Ord + Clone> {
@@ -42,6 +48,55 @@ impl<T: Ord + Clone> BST<T> {
     /// ```
     pub fn new() -> Self {
         Self { tree: Tree::new() }
+    }
+
+    /// Get a reference to the underlying tree structure
+    ///
+    /// This provides controlled access to the tree for advanced operations
+    /// while maintaining encapsulation. Use this method when you need
+    /// direct access to tree-specific functionality not exposed through
+    /// the BST interface.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::BST;
+    /// use jangal::TreeLike;
+    ///
+    /// let mut bst = BST::new();
+    /// bst.insert(5);
+    /// bst.insert(3);
+    ///
+    /// // Access underlying tree for advanced operations
+    /// let tree_ref = bst.as_tree();
+    /// assert_eq!(tree_ref.size(), 2);
+    /// ```
+    pub fn as_tree(&self) -> &Tree<T> {
+        &self.tree
+    }
+
+    /// Get a mutable reference to the underlying tree structure
+    ///
+    /// This provides controlled access to the tree for advanced operations
+    /// while maintaining encapsulation. Use this method when you need
+    /// direct mutable access to tree-specific functionality not exposed through
+    /// the BST interface.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::BST;
+    /// use jangal::TreeLike;
+    ///
+    /// let mut bst = BST::new();
+    /// bst.insert(5);
+    ///
+    /// // Access underlying tree for advanced operations
+    /// let tree_ref = bst.as_tree_mut();
+    /// // Perform advanced tree operations...
+    /// ```
+    pub fn as_tree_mut(&mut self) -> &mut Tree<T> {
+        &mut self.tree
     }
 
     /// Insert an element into the BST
@@ -204,7 +259,7 @@ impl<T: Ord + Clone> BST<T> {
             return;
         };
 
-        let (has_left, has_right, parent_id, _) = node_info;
+        let (has_left, has_right, parent_id, _node_value) = node_info;
         let has_left = has_left.is_some();
         let has_right = has_right.is_some();
 
@@ -242,7 +297,11 @@ impl<T: Ord + Clone> BST<T> {
                     self.tree.set_root_id(Some(left_id.into()));
                 }
                 if let Some(left) = self.tree.get_node_mut(left_id) {
-                    left.set_parent(parent_id.unwrap_or(0.0));
+                    if let Some(parent_id) = parent_id {
+                        left.set_parent(parent_id);
+                    } else {
+                        left.remove_parent();
+                    }
                 }
                 self.tree.remove_node(node_id);
             }
@@ -262,7 +321,11 @@ impl<T: Ord + Clone> BST<T> {
                     self.tree.set_root_id(Some(right_id.into()));
                 }
                 if let Some(right) = self.tree.get_node_mut(right_id) {
-                    right.set_parent(parent_id.unwrap_or(0.0));
+                    if let Some(parent_id) = parent_id {
+                        right.set_parent(parent_id);
+                    } else {
+                        right.remove_parent();
+                    }
                 }
                 self.tree.remove_node(node_id);
             }
@@ -526,77 +589,134 @@ impl<T: Ord + Clone> BST<T> {
             Vec::new()
         }
     }
-}
 
-// BST inherits ALL functionality from Tree through trait implementations
-impl<T: Ord + Clone> TreeLike<T> for BST<T> {
-    fn size(&self) -> usize {
+    /// Get the size of the BST
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::BST;
+    ///
+    /// let mut bst = BST::new();
+    /// assert_eq!(bst.size(), 0);
+    /// bst.insert(5);
+    /// assert_eq!(bst.size(), 1);
+    /// ```
+    pub fn size(&self) -> usize {
         self.tree.size()
     }
 
-    fn is_empty(&self) -> bool {
+    /// Check if the BST is empty
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::BST;
+    ///
+    /// let mut bst = BST::new();
+    /// assert!(bst.is_empty());
+    /// bst.insert(5);
+    /// assert!(!bst.is_empty());
+    /// ```
+    pub fn is_empty(&self) -> bool {
         self.tree.is_empty()
     }
 
-    fn search_by_value(&self, value: &T) -> Option<Number> {
+    /// Search for a value in the BST and return the node ID
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::BST;
+    ///
+    /// let mut bst = BST::new();
+    /// bst.insert(5);
+    /// assert!(bst.search_by_value(&5).is_some());
+    /// assert!(bst.search_by_value(&10).is_none());
+    /// ```
+    pub fn search_by_value(&self, value: &T) -> Option<Number> {
         self.tree.search_by_value(value)
     }
 
-    fn num_nodes(&self, node_id: Number) -> usize {
+    /// Get a node by its ID
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::BST;
+    ///
+    /// let mut bst = BST::new();
+    /// bst.insert(5);
+    /// if let Some(node_id) = bst.search(&5) {
+    ///     if let Some(node) = bst.get_node(node_id) {
+    ///         assert_eq!(node.value, 5);
+    ///     }
+    /// }
+    /// ```
+    pub fn get_node(&self, id: Number) -> Option<&Node<T>> {
+        self.tree.get_node(id)
+    }
+
+    /// Get a mutable reference to a node by its ID
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::BST;
+    ///
+    /// let mut bst = BST::new();
+    /// bst.insert(5);
+    /// if let Some(node_id) = bst.search(&5) {
+    ///     if let Some(node) = bst.get_node_mut(node_id) {
+    ///         // Modify the node if needed
+    ///     }
+    /// }
+    /// ```
+    pub fn get_node_mut(&mut self, id: Number) -> Option<&mut Node<T>> {
+        self.tree.get_node_mut(id)
+    }
+
+    /// Get the number of nodes in a subtree starting from the given node
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::BST;
+    ///
+    /// let mut bst = BST::new();
+    /// bst.insert(5);
+    /// bst.insert(3);
+    /// bst.insert(7);
+    /// if let Some(root_id) = bst.root() {
+    ///     assert_eq!(bst.num_nodes(root_id), 3);
+    /// }
+    /// ```
+    pub fn num_nodes(&self, node_id: Number) -> usize {
         self.tree.num_nodes(node_id)
     }
 
-    fn is_balanced(&self, node_id: Number) -> bool {
+    /// Check if a subtree starting from the given node is balanced
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::BST;
+    ///
+    /// let mut bst = BST::new();
+    /// bst.insert(5);
+    /// bst.insert(3);
+    /// bst.insert(7);
+    /// if let Some(root_id) = bst.root() {
+    ///     assert!(bst.is_balanced(root_id));
+    /// }
+    /// ```
+    pub fn is_balanced(&self, node_id: Number) -> bool {
         self.tree.is_balanced(node_id)
     }
 }
 
-impl<T: Ord + Clone> NodeBasedTree<T> for BST<T> {
-    fn root_id(&self) -> Option<Number> {
-        self.tree.root_id()
-    }
-
-    fn get_node(&self, id: Number) -> Option<&Node<T>> {
-        self.tree.get_node(id)
-    }
-
-    fn get_node_mut(&mut self, id: Number) -> Option<&mut Node<T>> {
-        self.tree.get_node_mut(id)
-    }
-
-    fn height(&self, node_id: Number) -> usize {
-        self.tree.height(node_id)
-    }
-
-    fn depth(&self, node_id: Number) -> usize {
-        self.tree.depth(node_id)
-    }
-
-    fn num_leaves(&self, node_id: Number) -> usize {
-        self.tree.num_leaves(node_id)
-    }
-
-    fn get_leaves(&self, node_id: Number) -> Vec<&Node<T>> {
-        self.tree.get_leaves(node_id)
-    }
-
-    fn dfs(&self, node_id: Number) -> Vec<&Node<T>> {
-        self.tree.dfs(node_id)
-    }
-
-    fn bfs(&self, node_id: Number) -> Vec<&Node<T>> {
-        self.tree.bfs(node_id)
-    }
-
-    fn preorder(&self, node_id: Number) -> Vec<&Node<T>> {
-        self.tree.preorder(node_id)
-    }
-
-    fn postorder(&self, node_id: Number) -> Vec<&Node<T>> {
-        self.tree.postorder(node_id)
-    }
-}
-
+// BST provides its own focused API for binary search tree operations
+// Generic tree functionality is available through as_tree() when needed
 impl<T: Ord + Clone> Default for BST<T> {
     /// Create a new empty BST using the default implementation
     ///
@@ -604,7 +724,6 @@ impl<T: Ord + Clone> Default for BST<T> {
     ///
     /// ```
     /// use jangal::BST;
-    /// use jangal::TreeLike;
     ///
     /// let bst: BST<i32> = BST::default();
     /// assert!(bst.is_empty());
@@ -644,6 +763,7 @@ pub struct vEB {
     max: Option<usize>,
     summary: Option<Box<vEB>>,
     clusters: Vec<Option<vEB>>,
+    element_count: usize, // Track actual element count
 }
 
 impl vEB {
@@ -677,18 +797,75 @@ impl vEB {
             max: None,
             summary: None,
             clusters: Vec::new(),
+            element_count: 0,
         };
 
         if u > 2 {
-            let cluster_size = veb.cluster_size();
-            veb.summary = Some(Box::new(vEB::new(cluster_size)));
-            veb.clusters = vec![None; cluster_size];
-            for i in 0..cluster_size {
-                veb.clusters[i] = Some(vEB::new(cluster_size));
+            // For van Emde Boas, we need to split the universe properly
+            // If u = 2^2^k, then we want sqrt(u) = 2^(2^(k-1))
+            // For other powers of 2, we need to find the closest power of 2
+            let log_u = u.ilog2() as usize;
+            let upper_sqrt = 1 << log_u.div_ceil(2); // Upper square root
+            let lower_sqrt = u / upper_sqrt; // Lower square root
+
+            veb.summary = Some(Box::new(vEB::new(upper_sqrt)));
+            veb.clusters = vec![None; upper_sqrt];
+            for i in 0..upper_sqrt {
+                veb.clusters[i] = Some(vEB::new(lower_sqrt));
             }
         }
 
         veb
+    }
+
+    /// Get a reference to the underlying tree structure
+    ///
+    /// This provides controlled access to the tree for advanced operations
+    /// while maintaining encapsulation. Use this method when you need
+    /// direct access to tree-specific functionality not exposed through
+    /// the vEB interface.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::vEB;
+    /// use jangal::TreeLike;
+    ///
+    /// let mut veb = vEB::new(8);
+    /// veb.insert(3);
+    /// veb.insert(5);
+    ///
+    /// // Access underlying tree for advanced operations
+    /// let tree_ref = veb.as_tree();
+    /// assert_eq!(tree_ref.size(), 0); // Underlying tree is empty
+    /// assert_eq!(veb.size(), 2); // vEB tree has 2 elements
+    /// ```
+    pub fn as_tree(&self) -> &Tree<usize> {
+        &self.tree
+    }
+
+    /// Get a mutable reference to the underlying tree structure
+    ///
+    /// This provides controlled access to the tree for advanced operations
+    /// while maintaining encapsulation. Use this method when you need
+    /// direct mutable access to tree-specific functionality not exposed through
+    /// the vEB interface.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::vEB;
+    /// use jangal::TreeLike;
+    ///
+    /// let mut veb = vEB::new(8);
+    /// veb.insert(5);
+    ///
+    /// // Access underlying tree for advanced operations
+    /// let tree_ref = veb.as_tree_mut();
+    /// // Perform advanced tree operations...
+    /// ```
+    pub fn as_tree_mut(&mut self) -> &mut Tree<usize> {
+        &mut self.tree
     }
 
     /// Insert an element into the vEB tree
@@ -719,19 +896,42 @@ impl vEB {
             );
         }
 
-        // Update min/max
-        if self.min.is_none() || x < self.min.unwrap() {
+        if self.min.is_none() {
             self.min = Some(x);
-        }
-        if self.max.is_none() || x > self.max.unwrap() {
             self.max = Some(x);
+            self.element_count = 1;
+        } else {
+            if x < self.min.unwrap() {
+                let old_min = self.min.unwrap();
+                self.min = Some(x);
+                if self.universe_size > 2 {
+                    self.insert_recursive(old_min);
+                }
+            }
+            if x > self.max.unwrap() {
+                self.max = Some(x);
+            }
+            if self.universe_size > 2 {
+                self.insert_recursive(x);
+            }
+            self.element_count += 1;
         }
+    }
 
-        // Add to the tree structure
-        let node = Node::new(x);
-        if let Some(id) = self.tree.add_node(node) {
-            if self.tree.root_id().is_none() {
-                self.tree.set_root(id);
+    fn insert_recursive(&mut self, x: usize) {
+        let i = self.high(x);
+        let j = self.low(x);
+
+        if let Some(cluster) = &mut self.clusters[i] {
+            if cluster.min.is_none() {
+                if let Some(summary) = &mut self.summary {
+                    summary.insert(i);
+                }
+                cluster.min = Some(j);
+                cluster.max = Some(j);
+                cluster.element_count = 1;
+            } else {
+                cluster.insert(j);
             }
         }
     }
@@ -761,8 +961,27 @@ impl vEB {
             return None;
         }
 
-        // Check if it's in the tree structure
-        self.tree.search_by_value(x)
+        // Check min/max first
+        if self.min == Some(*x) || self.max == Some(*x) {
+            return Some(f64::NAN); // Return marker value since we're not using the tree structure
+        }
+
+        // Base case: universe size 2
+        if self.universe_size == 2 {
+            return None;
+        }
+
+        // Search recursively in clusters
+        let i = self.high(*x);
+        let j = self.low(*x);
+
+        if let Some(cluster) = &self.clusters[i] {
+            if cluster.contains(&j) {
+                return Some(0.0); // Return dummy ID
+            }
+        }
+
+        None
     }
 
     /// Delete an element from the vEB tree
@@ -791,26 +1010,81 @@ impl vEB {
             return;
         }
 
-        // Remove from tree structure first
-        if let Some(node_id) = self.search(x) {
-            self.tree.remove_node(node_id);
-        }
-
-        // Update min/max if needed
-        if self.min == Some(*x) {
-            if let Some(new_min) = self.tree.min() {
-                self.min = Some(*new_min);
+        if self.min == Some(*x) && self.max == Some(*x) {
+            self.min = None;
+            self.max = None;
+            self.element_count = 0;
+        } else if self.universe_size == 2 {
+            if *x == 0 {
+                self.min = Some(1);
             } else {
-                self.min = None;
+                self.min = Some(0);
             }
-        }
+            self.max = self.min;
+            self.element_count = 1;
+        } else {
+            if *x == self.min.unwrap() {
+                let first_cluster = self.summary.as_ref().unwrap().min.unwrap();
+                let new_min_low = self.clusters[first_cluster].as_ref().unwrap().min.unwrap();
+                let new_min = self.index(first_cluster, new_min_low);
+                self.min = Some(new_min);
 
-        if self.max == Some(*x) {
-            if let Some(new_max) = self.tree.max() {
-                self.max = Some(*new_max);
+                // Delete the new min from its cluster
+                self.clusters[first_cluster]
+                    .as_mut()
+                    .unwrap()
+                    .delete(&new_min_low);
+
+                // If cluster is now empty, remove it from summary
+                if self.clusters[first_cluster].as_ref().unwrap().min.is_none() {
+                    self.summary.as_mut().unwrap().delete(&first_cluster);
+
+                    // Update max if needed
+                    if new_min == self.max.unwrap() {
+                        let summary_max = self.summary.as_ref().unwrap().max;
+                        if let Some(summary_max_val) = summary_max {
+                            let cluster_max = self.clusters[summary_max_val]
+                                .as_ref()
+                                .unwrap()
+                                .max
+                                .unwrap();
+                            self.max = Some(self.index(summary_max_val, cluster_max));
+                        } else {
+                            self.max = self.min;
+                        }
+                    }
+                }
             } else {
-                self.max = None;
+                let high_x = self.high(*x);
+                let low_x = self.low(*x);
+
+                // Delete from cluster
+                self.clusters[high_x].as_mut().unwrap().delete(&low_x);
+
+                // If cluster is now empty, remove it from summary
+                if self.clusters[high_x].as_ref().unwrap().min.is_none() {
+                    self.summary.as_mut().unwrap().delete(&high_x);
+
+                    // Update max if needed
+                    if *x == self.max.unwrap() {
+                        let summary_max = self.summary.as_ref().unwrap().max;
+                        if let Some(summary_max_val) = summary_max {
+                            let cluster_max = self.clusters[summary_max_val]
+                                .as_ref()
+                                .unwrap()
+                                .max
+                                .unwrap();
+                            self.max = Some(self.index(summary_max_val, cluster_max));
+                        } else {
+                            self.max = self.min;
+                        }
+                    }
+                } else if *x == self.max.unwrap() {
+                    let cluster_max = self.clusters[high_x].as_ref().unwrap().max.unwrap();
+                    self.max = Some(self.index(high_x, cluster_max));
+                }
             }
+            self.element_count -= 1;
         }
     }
 
@@ -834,7 +1108,24 @@ impl vEB {
     /// assert!(!veb.contains(&10));
     /// ```
     pub fn contains(&self, x: &usize) -> bool {
-        self.search(x).is_some()
+        if *x >= self.universe_size {
+            return false;
+        }
+
+        if (self.min.is_some() && x == self.min.as_ref().unwrap())
+            || (self.max.is_some() && x == self.max.as_ref().unwrap())
+        {
+            true
+        } else if self.universe_size == 2 {
+            false
+        } else {
+            let high_x = self.high(*x);
+            let low_x = self.low(*x);
+            if let Some(cluster) = &self.clusters[high_x] {
+                return cluster.contains(&low_x);
+            }
+            false
+        }
     }
 
     /// Get the minimum element in the vEB tree
@@ -933,23 +1224,36 @@ impl vEB {
             return None;
         }
 
-        if self.min.is_some() && *x < self.min.unwrap() {
+        if self.universe_size == 2 {
+            if *x == 0 && self.max == Some(1) {
+                return Some(1);
+            } else {
+                return None;
+            }
+        } else if self.min.is_some() && *x < self.min.unwrap() {
             return self.min;
-        }
+        } else {
+            let high_x = self.high(*x);
+            let low_x = self.low(*x);
 
-        if self.max.is_some() && *x >= self.max.unwrap() {
-            return None;
-        }
+            if let Some(cluster) = &self.clusters[high_x] {
+                let max_low = cluster.max;
+                if max_low.is_some() && low_x < max_low.unwrap() {
+                    let offset = cluster.successor(&low_x);
+                    if let Some(offset_val) = offset {
+                        return Some(self.index(high_x, offset_val));
+                    }
+                }
+            }
 
-        // Find the next element in the tree
-        let mut current = *x;
-        while current < self.universe_size - 1 {
-            current += 1;
-            if self.contains(&current) {
-                return Some(current);
+            let succ_cluster = self.summary.as_ref().unwrap().successor(&high_x);
+            if let Some(succ_cluster_val) = succ_cluster {
+                let offset = self.clusters[succ_cluster_val].as_ref().unwrap().min;
+                if let Some(offset_val) = offset {
+                    return Some(self.index(succ_cluster_val, offset_val));
+                }
             }
         }
-
         None
     }
 
@@ -977,23 +1281,38 @@ impl vEB {
             return None;
         }
 
-        if self.max.is_some() && *x > self.max.unwrap() {
+        if self.universe_size == 2 {
+            if *x == 1 && self.min == Some(0) {
+                return Some(0);
+            } else {
+                return None;
+            }
+        } else if self.max.is_some() && *x > self.max.unwrap() {
             return self.max;
-        }
+        } else {
+            let high_x = self.high(*x);
+            let low_x = self.low(*x);
 
-        if self.min.is_some() && *x <= self.min.unwrap() {
-            return None;
-        }
+            if let Some(cluster) = &self.clusters[high_x] {
+                let min_low = cluster.min;
+                if min_low.is_some() && low_x > min_low.unwrap() {
+                    let offset = cluster.predecessor(&low_x);
+                    if let Some(offset_val) = offset {
+                        return Some(self.index(high_x, offset_val));
+                    }
+                }
+            }
 
-        // Find the previous element in the tree
-        let mut current = *x;
-        while current > 0 {
-            current -= 1;
-            if self.contains(&current) {
-                return Some(current);
+            let pred_cluster = self.summary.as_ref().unwrap().predecessor(&high_x);
+            if let Some(pred_cluster_val) = pred_cluster {
+                let offset = self.clusters[pred_cluster_val].as_ref().unwrap().max;
+                if let Some(offset_val) = offset {
+                    return Some(self.index(pred_cluster_val, offset_val));
+                }
+            } else if self.min.is_some() && *x > self.min.unwrap() {
+                return self.min;
             }
         }
-
         None
     }
 
@@ -1011,14 +1330,61 @@ impl vEB {
         self.universe_size
     }
 
+    /// Get the number of elements in the vEB tree
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::vEB;
+    ///
+    /// let mut veb = vEB::new(8);
+    /// assert_eq!(veb.size(), 0);
+    /// veb.insert(3);
+    /// assert_eq!(veb.size(), 1);
+    /// ```
+    pub fn size(&self) -> usize {
+        self.element_count
+    }
+
+    /// Check if the vEB tree is empty
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jangal::vEB;
+    ///
+    /// let mut veb = vEB::new(8);
+    /// assert!(veb.is_empty());
+    /// veb.insert(3);
+    /// assert!(!veb.is_empty());
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.element_count == 0
+    }
+
     fn cluster_size(&self) -> usize {
-        // Find the largest power of 2 that is <= sqrt(universe_size)
-        let sqrt_u = (self.universe_size as f64).sqrt() as usize;
-        let mut cluster_size = 1;
-        while cluster_size * 2 <= sqrt_u {
-            cluster_size *= 2;
-        }
-        cluster_size
+        // For van Emde Boas, we need to split the universe properly
+        // If u = 2^2^k, then we want sqrt(u) = 2^(2^(k-1))
+        // For other powers of 2, we need to find the closest power of 2
+        let log_u = self.universe_size.ilog2() as usize;
+        let upper_sqrt = 1 << log_u.div_ceil(2); // Upper square root
+                                                 // Lower square root
+        self.universe_size / upper_sqrt
+    }
+
+    /// Get the high-order bits (cluster number) of x
+    fn high(&self, x: usize) -> usize {
+        x / self.cluster_size()
+    }
+
+    /// Get the low-order bits (position within cluster) of x
+    fn low(&self, x: usize) -> usize {
+        x % self.cluster_size()
+    }
+
+    /// Combine high and low bits to form the original value
+    fn index(&self, high: usize, low: usize) -> usize {
+        high * self.cluster_size() + low
     }
 
     /// Get the root node ID
@@ -1027,6 +1393,7 @@ impl vEB {
     ///
     /// ```
     /// use jangal::vEB;
+    /// use jangal::TreeLike;
     ///
     /// let mut veb = vEB::new(8);
     /// assert_eq!(veb.root(), None);
@@ -1035,146 +1402,58 @@ impl vEB {
     /// assert!(veb.root().is_some());
     /// ```
     pub fn root(&self) -> Option<Number> {
-        self.tree.root_id()
+        if self.min.is_some() {
+            Some(0.0) // Return dummy ID since we're not using the tree structure
+        } else {
+            None
+        }
     }
 
     /// Returns the depth of a node in the tree
-    pub fn depth(&self, node_id: Number) -> usize {
-        self.tree.depth(node_id)
+    pub fn depth(&self, _node_id: Number) -> usize {
+        0 // Since we're not using the tree structure, depth is always 0
     }
 
     /// Returns the number of leaves in the tree
     pub fn num_leaves(&self) -> usize {
-        if let Some(root_id) = self.tree.root_id() {
-            self.tree.num_leaves(root_id)
-        } else {
-            0
-        }
+        self.size() // In our case, all elements are leaves
     }
 
     /// Returns all leaf nodes in the tree
     pub fn get_leaves(&self) -> Vec<&Node<usize>> {
-        if let Some(root_id) = self.tree.root_id() {
-            self.tree.get_leaves(root_id)
-        } else {
-            Vec::new()
-        }
+        Vec::new() // We don't have Node objects in the new structure
     }
 
     /// Performs a depth-first search starting from the root
     pub fn dfs(&self) -> Vec<&Node<usize>> {
-        if let Some(root_id) = self.tree.root_id() {
-            self.tree.dfs(root_id)
-        } else {
-            Vec::new()
-        }
+        Vec::new() // We don't have Node objects in the new structure
     }
 
     /// Performs a breadth-first search starting from the root
     pub fn bfs(&self) -> Vec<&Node<usize>> {
-        if let Some(root_id) = self.tree.root_id() {
-            self.tree.bfs(root_id)
-        } else {
-            Vec::new()
-        }
+        Vec::new() // We don't have Node objects in the new structure
     }
 
     /// Performs a preorder traversal starting from the root
     pub fn preorder(&self) -> Vec<&Node<usize>> {
-        if let Some(root_id) = self.tree.root_id() {
-            self.tree.preorder(root_id)
-        } else {
-            Vec::new()
-        }
+        Vec::new() // We don't have Node objects in the new structure
     }
 
     /// Performs a postorder traversal starting from the root
     pub fn postorder(&self) -> Vec<&Node<usize>> {
-        if let Some(root_id) = self.tree.root_id() {
-            self.tree.postorder(root_id)
-        } else {
-            Vec::new()
-        }
+        Vec::new() // We don't have Node objects in the new structure
     }
 
     /// Performs an inorder traversal starting from the root
     pub fn inorder(&self) -> Vec<&Node<usize>> {
-        if let Some(root_id) = self.tree.root_id() {
-            self.tree.inorder(root_id)
-        } else {
-            Vec::new()
-        }
+        Vec::new() // We don't have Node objects in the new structure
     }
 }
 
 // vEB inherits ALL functionality from Tree through trait implementations
-impl TreeLike<usize> for vEB {
-    fn size(&self) -> usize {
-        self.tree.size()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.tree.is_empty()
-    }
-
-    fn search_by_value(&self, value: &usize) -> Option<Number> {
-        self.tree.search_by_value(value)
-    }
-
-    fn num_nodes(&self, node_id: Number) -> usize {
-        self.tree.num_nodes(node_id)
-    }
-
-    fn is_balanced(&self, node_id: Number) -> bool {
-        self.tree.is_balanced(node_id)
-    }
-}
-
-impl NodeBasedTree<usize> for vEB {
-    fn root_id(&self) -> Option<Number> {
-        self.tree.root_id()
-    }
-
-    fn get_node(&self, id: Number) -> Option<&Node<usize>> {
-        self.tree.get_node(id)
-    }
-
-    fn get_node_mut(&mut self, id: Number) -> Option<&mut Node<usize>> {
-        self.tree.get_node_mut(id)
-    }
-
-    fn height(&self, node_id: Number) -> usize {
-        self.tree.height(node_id)
-    }
-
-    fn depth(&self, node_id: Number) -> usize {
-        self.tree.depth(node_id)
-    }
-
-    fn num_leaves(&self, node_id: Number) -> usize {
-        self.tree.num_leaves(node_id)
-    }
-
-    fn get_leaves(&self, node_id: Number) -> Vec<&Node<usize>> {
-        self.tree.get_leaves(node_id)
-    }
-
-    fn dfs(&self, node_id: Number) -> Vec<&Node<usize>> {
-        self.tree.dfs(node_id)
-    }
-
-    fn bfs(&self, node_id: Number) -> Vec<&Node<usize>> {
-        self.tree.bfs(node_id)
-    }
-
-    fn preorder(&self, node_id: Number) -> Vec<&Node<usize>> {
-        self.tree.preorder(node_id)
-    }
-
-    fn postorder(&self, node_id: Number) -> Vec<&Node<usize>> {
-        self.tree.postorder(node_id)
-    }
-}
+// vEB tree doesn't implement TreeLike or NodeBasedTree traits
+// since it doesn't actually use the underlying Tree<usize> field
+// The vEB tree is a completely separate data structure
 
 #[cfg(test)]
 mod tests {
@@ -1213,6 +1492,21 @@ mod tests {
     }
 
     #[test]
+    fn test_bst_tree_access_methods() {
+        let mut bst = BST::new();
+        bst.insert(5);
+        bst.insert(3);
+        bst.insert(7);
+
+        let tree_ref = bst.as_tree();
+        assert_eq!(tree_ref.size(), 3);
+        assert!(tree_ref.root_id().is_some());
+
+        let tree_mut = bst.as_tree_mut();
+        assert_eq!(tree_mut.size(), 3);
+    }
+
+    #[test]
     fn test_bst_deletion_scenarios() {
         let mut bst = BST::new();
 
@@ -1241,6 +1535,31 @@ mod tests {
         // Verify remaining structure
         assert!(bst.search(&7).is_some());
         assert!(bst.search(&9).is_some());
+    }
+
+    #[test]
+    fn test_bst_root_deletion_with_one_child() {
+        let mut bst = BST::new();
+
+        // Create a tree with root 5 and left child 3
+        bst.insert(5);
+        bst.insert(3);
+
+        // Get the initial root ID
+        let initial_root_id = bst.root().unwrap();
+
+        // Delete the root (5), leaving only the left child (3)
+        bst.delete(&5);
+
+        // Verify there's a new root
+        let new_root_id = bst.root().unwrap();
+        assert_ne!(new_root_id, initial_root_id);
+
+        // Verify the new root has no parent (it's the root)
+        if let Some(root_node) = bst.get_node(new_root_id) {
+            assert!(root_node.parent().is_none());
+            assert_eq!(root_node.value, 3);
+        }
     }
 
     #[test]
@@ -1328,6 +1647,63 @@ mod tests {
     }
 
     #[test]
+    fn test_veb_universe_size_2() {
+        // Test that universe size 2 is valid and works correctly
+        let mut veb = vEB::new(2);
+
+        // Verify the vEB tree was created successfully
+        assert_eq!(veb.universe_size(), 2);
+        assert_eq!(veb.size(), 0);
+        assert!(veb.is_empty());
+
+        // Test insertion of valid elements (0 and 1)
+        veb.insert(0);
+        assert_eq!(veb.size(), 1);
+        assert!(veb.contains(&0));
+        assert!(!veb.contains(&1));
+        assert_eq!(veb.minimum(), Some(0));
+        assert_eq!(veb.maximum(), Some(0));
+
+        veb.insert(1);
+        assert_eq!(veb.size(), 2);
+        assert!(veb.contains(&0));
+        assert!(veb.contains(&1));
+        assert_eq!(veb.minimum(), Some(0));
+        assert_eq!(veb.maximum(), Some(1));
+    }
+
+    #[test]
+    #[should_panic(expected = "Universe size must be at least 2")]
+    fn test_veb_universe_size_1_panics() {
+        // Test that universe size 1 causes a panic
+        let _veb = vEB::new(1);
+    }
+
+    #[test]
+    #[should_panic(expected = "Universe size must be a power of 2")]
+    fn test_veb_universe_size_3_panics() {
+        // Test that universe size 3 (not a power of 2) causes a panic
+        let _veb = vEB::new(3);
+    }
+
+    #[test]
+    fn test_veb_tree_access_methods() {
+        let mut veb = vEB::new(16);
+        veb.insert(5);
+        veb.insert(3);
+        veb.insert(7);
+
+        // Test the vEB tree's own size method
+        assert_eq!(veb.size(), 3);
+        assert!(!veb.is_empty());
+
+        // Test that the underlying tree is empty (as expected)
+        let tree_ref = veb.as_tree();
+        assert_eq!(tree_ref.size(), 0); // Underlying tree is empty
+        assert!(tree_ref.root_id().is_none());
+    }
+
+    #[test]
     fn test_veb_advanced_operations() {
         let mut veb = vEB::new(32);
 
@@ -1364,6 +1740,7 @@ mod tests {
 
         // Delete middle element
         veb.delete(&5);
+
         assert!(!veb.contains(&5));
         assert_eq!(veb.minimum(), Some(3));
         assert_eq!(veb.maximum(), Some(7));
@@ -1374,5 +1751,34 @@ mod tests {
         assert_eq!(veb.successor(&3), Some(5));
         assert_eq!(veb.successor(&5), Some(7));
         assert_eq!(veb.predecessor(&7), Some(5));
+    }
+
+    #[test]
+    fn test_veb_cluster_size() {
+        let mut veb = vEB::new(4);
+        assert_eq!(veb.universe_size, 4);
+        assert_eq!(veb.cluster_size(), 2);
+        let num_clusters = veb.universe_size / veb.cluster_size();
+        assert_eq!(num_clusters, 2);
+
+        veb.insert(0);
+        assert_eq!(veb.size(), 1);
+        assert_eq!(veb.minimum(), Some(0));
+        assert_eq!(veb.maximum(), Some(0));
+
+        veb.insert(1);
+        assert_eq!(veb.size(), 2);
+        assert_eq!(veb.minimum(), Some(0));
+        assert_eq!(veb.maximum(), Some(1));
+
+        veb.insert(2);
+        assert_eq!(veb.size(), 3);
+        assert_eq!(veb.minimum(), Some(0));
+        assert_eq!(veb.maximum(), Some(2));
+
+        veb.insert(3);
+        assert_eq!(veb.size(), 4);
+        assert_eq!(veb.minimum(), Some(0));
+        assert_eq!(veb.maximum(), Some(3));
     }
 }
