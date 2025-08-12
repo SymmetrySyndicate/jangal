@@ -869,61 +869,175 @@ impl<T> TreeLike<T> for Tree<T> {
     where
         T: PartialEq,
     {
-        self.search_by_value(value)
+        for (id, node) in &self.nodes {
+            if node.value == *value {
+                return Some(id.value());
+            }
+        }
+        None
     }
 
     fn num_nodes(&self, node_id: Number) -> usize {
-        self.num_nodes(node_id)
+        if let Some(node) = self.nodes.get(&FloatId::from(node_id)) {
+            let mut count = 1; // Count the current node
+            for child_id in node.children() {
+                count += self.num_nodes(child_id);
+            }
+            return count;
+        }
+        0
     }
 
     fn is_balanced(&self, node_id: Number) -> bool {
-        self.is_balanced(node_id)
+        if let Some(node) = self.nodes.get(&FloatId::from(node_id)) {
+            if node.is_leaf() {
+                return true;
+            }
+
+            let mut heights = Vec::new();
+            for child_id in node.children() {
+                heights.push(self.height(child_id));
+            }
+
+            if heights.is_empty() {
+                return true;
+            }
+
+            let min_height = heights.iter().min().unwrap();
+            let max_height = heights.iter().max().unwrap();
+
+            // Check if the height difference is at most 1
+            if max_height - min_height > 1 {
+                return false;
+            }
+
+            // Recursively check all children
+            for child_id in node.children() {
+                if !self.is_balanced(child_id) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        true
     }
 }
 
 impl<T> NodeBasedTree<T> for Tree<T> {
     fn root_id(&self) -> Option<Number> {
-        self.root_id()
+        self.root_id.map(|id| id.value())
     }
 
     fn get_node(&self, id: Number) -> Option<&Node<T>> {
-        self.get_node(id)
+        self.nodes.get(&FloatId::from(id))
     }
 
     fn get_node_mut(&mut self, id: Number) -> Option<&mut Node<T>> {
-        self.get_node_mut(id)
+        self.nodes.get_mut(&FloatId::from(id))
     }
 
     fn height(&self, node_id: Number) -> usize {
-        self.height(node_id)
+        if let Some(node) = self.nodes.get(&FloatId::from(node_id)) {
+            if node.is_leaf() {
+                return 0;
+            }
+            let mut max_height = 0;
+            for child_id in node.children() {
+                let child_height = self.height(child_id);
+                max_height = max_height.max(child_height);
+            }
+            return 1 + max_height;
+        }
+        0
     }
 
     fn depth(&self, node_id: Number) -> usize {
-        self.depth(node_id)
+        let mut current_id = FloatId::from(node_id);
+        let mut depth = 0;
+
+        while let Some(node) = self.nodes.get(&current_id) {
+            if let Some(parent_id) = node.parent() {
+                current_id = FloatId::from(parent_id);
+                depth += 1;
+            } else {
+                break;
+            }
+        }
+
+        depth
     }
 
     fn num_leaves(&self, node_id: Number) -> usize {
-        self.num_leaves(node_id)
+        if let Some(node) = self.nodes.get(&FloatId::from(node_id)) {
+            if node.is_leaf() {
+                return 1;
+            }
+            let mut count = 0;
+            for child_id in node.children() {
+                count += self.num_leaves(child_id);
+            }
+            return count;
+        }
+        0
     }
 
     fn get_leaves(&self, node_id: Number) -> Vec<&Node<T>> {
-        self.get_leaves(node_id)
+        if let Some(node) = self.nodes.get(&FloatId::from(node_id)) {
+            if node.is_leaf() {
+                return vec![node];
+            }
+            let mut leaves = Vec::new();
+            for child_id in node.children() {
+                leaves.extend(self.get_leaves(child_id));
+            }
+            return leaves;
+        }
+        Vec::new()
     }
 
     fn dfs(&self, node_id: Number) -> Vec<&Node<T>> {
-        self.dfs(node_id)
+        let mut visited = HashSet::new();
+        let mut result = Vec::new();
+        self.dfs_recursive(FloatId::from(node_id), &mut visited, &mut result);
+        result
     }
 
     fn bfs(&self, node_id: Number) -> Vec<&Node<T>> {
-        self.bfs(node_id)
+        let mut visited = HashSet::new();
+        let mut queue = VecDeque::new();
+        let mut result = Vec::new();
+
+        let node_id = FloatId::from(node_id);
+        queue.push_back(node_id);
+        visited.insert(node_id);
+
+        while let Some(current_id) = queue.pop_front() {
+            if let Some(node) = self.nodes.get(&current_id) {
+                result.push(node);
+                for child_id in node.children() {
+                    let child_id = FloatId::from(child_id);
+                    if !visited.contains(&child_id) {
+                        visited.insert(child_id);
+                        queue.push_back(child_id);
+                    }
+                }
+            }
+        }
+
+        result
     }
 
     fn preorder(&self, node_id: Number) -> Vec<&Node<T>> {
-        self.preorder(node_id)
+        let mut result = Vec::new();
+        self.preorder_recursive(FloatId::from(node_id), &mut result);
+        result
     }
 
     fn postorder(&self, node_id: Number) -> Vec<&Node<T>> {
-        self.postorder(node_id)
+        let mut result = Vec::new();
+        self.postorder_recursive(FloatId::from(node_id), &mut result);
+        result
     }
 }
 
@@ -1930,47 +2044,9 @@ mod tests {
     }
 
     #[test]
-    fn test_tree_core_operations() {
-        let mut tree = Tree::<i32>::new();
-
-        let node1 = Node::new(1);
-        let node2 = Node::new(2);
-        let node3 = Node::new(3);
-
-        let id1 = tree.add_node(node1).unwrap();
-        let id2 = tree.add_node(node2).unwrap();
-        let id3 = tree.add_node(node3).unwrap();
-
-        // Set up parent-child relationships
-        if let Some(parent) = tree.get_node_mut(id1) {
-            parent.add_child(id2);
-            parent.add_child(id3);
-        }
-
-        if let Some(child1) = tree.get_node_mut(id2) {
-            child1.set_parent(id1);
-        }
-
-        if let Some(child2) = tree.get_node_mut(id3) {
-            child2.set_parent(id1);
-        }
-
-        tree.set_root(id1);
-
-        // Test core properties
-        assert_eq!(tree.size(), 3);
-        assert_eq!(tree.height(id1), 1);
-        assert_eq!(tree.depth(id2), 1);
-        assert_eq!(tree.num_leaves(id1), 2);
-        assert_eq!(tree.num_nodes(id1), 3);
-        assert!(tree.is_balanced(id1));
-    }
-
-    #[test]
-    fn test_tree_traversals() {
+    fn test_tree_core_operations_and_properties() {
         let mut tree = Tree::<&str>::new();
 
-        // Create a simple tree: root -> [child1, child2] -> [grandchild1, grandchild2]
         let root = Node::new("root");
         let child1 = Node::new("child1");
         let child2 = Node::new("child2");
@@ -2009,6 +2085,20 @@ mod tests {
 
         tree.set_root(root_id);
 
+        // Test core properties
+        assert_eq!(tree.size(), 5);
+        assert_eq!(tree.height(root_id), 2);
+        assert_eq!(tree.depth(child1_id), 1);
+        assert_eq!(tree.depth(grandchild1_id), 2);
+        assert_eq!(tree.num_leaves(root_id), 2);
+        assert_eq!(tree.num_nodes(root_id), 5);
+        assert!(tree.is_balanced(root_id));
+
+        let leaves = tree.get_leaves(root_id);
+        assert_eq!(leaves.len(), 2);
+        assert!(leaves.iter().any(|node| node.value == "grandchild1"));
+        assert!(leaves.iter().any(|node| node.value == "grandchild2"));
+
         // Test all traversal types
         let dfs_result = tree.dfs(root_id);
         let bfs_result = tree.bfs(root_id);
@@ -2023,46 +2113,61 @@ mod tests {
         // Verify traversal order
         assert_eq!(preorder_result[0].id, root_id);
         assert_eq!(postorder_result[4].id, root_id);
+
+        // Test trait methods work correctly
+        assert!(!tree.is_empty());
+
+        // Test search by value through trait
+        assert_eq!(tree.search_by_value(&"root"), Some(root_id));
+        assert_eq!(tree.search_by_value(&"child1"), Some(child1_id));
+        assert_eq!(tree.search_by_value(&"grandchild1"), Some(grandchild1_id));
+        assert_eq!(tree.search_by_value(&"nonexistent"), None);
+
+        // Test node count through trait
+        assert_eq!(tree.num_nodes(root_id), 5); // root + child1 + child2 + grandchild1 + grandchild2
+        assert_eq!(tree.num_nodes(child1_id), 2); // child1 + grandchild1
+        assert_eq!(tree.num_nodes(grandchild1_id), 1); // grandchild1 only
+
+        // Test balance check through trait
+        assert!(tree.is_balanced(root_id)); // balanced tree
+        assert!(tree.is_balanced(child1_id)); // balanced subtree
+        assert!(tree.is_balanced(grandchild1_id)); // leaf node is always balanced
     }
 
     #[test]
-    fn test_tree_properties() {
-        let mut tree = Tree::<&str>::new();
+    fn test_infinite_recursion() {
+        let mut tree = Tree::new();
+        let node1 = Node::new("root");
+        let node2 = Node::new("child");
 
-        let root = Node::new("root");
-        let child1 = Node::new("child1");
-        let child2 = Node::new("child2");
+        let id1 = tree.add_node(node1).unwrap();
+        let id2 = tree.add_node(node2).unwrap();
 
-        let root_id = tree.add_node(root).unwrap();
-        let child1_id = tree.add_node(child1).unwrap();
-        let child2_id = tree.add_node(child2).unwrap();
-
-        // Set up relationships
-        if let Some(root_node) = tree.get_node_mut(root_id) {
-            root_node.add_child(child1_id);
-            root_node.add_child(child2_id);
+        // Set up parent-child relationship
+        if let Some(parent) = tree.get_node_mut(id1) {
+            parent.add_child(id2);
+        }
+        if let Some(child) = tree.get_node_mut(id2) {
+            child.set_parent(id1);
         }
 
-        if let Some(child1_node) = tree.get_node_mut(child1_id) {
-            child1_node.set_parent(root_id);
+        // Test that trait methods don't cause infinite recursion
+        assert_eq!(tree.size(), 2);
+        assert!(!tree.is_empty());
+
+        // Test search by value through trait (should not crash)
+        if let Some(found_id) = tree.search_by_value(&"root") {
+            assert_eq!(found_id, id1);
+        } else {
+            panic!("Should have found 'root' node");
         }
 
-        if let Some(child2_node) = tree.get_node_mut(child2_id) {
-            child2_node.set_parent(root_id);
-        }
+        // Test node count through trait (should not crash)
+        let node_count = tree.num_nodes(id1);
+        assert_eq!(node_count, 2);
 
-        tree.set_root(root_id);
-
-        // Test tree properties
-        assert_eq!(tree.height(root_id), 1);
-        assert_eq!(tree.depth(child1_id), 1);
-        assert_eq!(tree.num_leaves(root_id), 2);
-        assert_eq!(tree.num_nodes(root_id), 3);
-        assert!(tree.is_balanced(root_id));
-
-        let leaves = tree.get_leaves(root_id);
-        assert_eq!(leaves.len(), 2);
-        assert!(leaves.iter().any(|node| node.value == "child1"));
-        assert!(leaves.iter().any(|node| node.value == "child2"));
+        // Test balance check through trait (should not crash)
+        let is_balanced = tree.is_balanced(id1);
+        assert!(is_balanced);
     }
 }
